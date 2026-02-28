@@ -1,0 +1,18 @@
+# Node
+node_modules/
+
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Expo / React Native
+ios/
+android/
+.expo/
+
+# OS
+.DS_Store
