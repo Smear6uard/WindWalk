@@ -20,10 +20,20 @@ function FitBounds({ bounds }) {
   return null;
 }
 
-export default function WebMap({ routeCoords, origin, destination }) {
+export default function WebMap({ routeCoords, coloredSegments, origin, destination }) {
   const positions = useMemo(() => {
     return routeCoords.map((c) => [c.latitude, c.longitude]);
   }, [routeCoords]);
+
+  const segmentPolylines = useMemo(() => {
+    if (!coloredSegments?.length) return null;
+    return coloredSegments.map((seg, idx) => {
+      const pos = seg.coordinates.map(([lng, lat]) => [lat, lng]);
+      const color =
+        seg.type === 'pedway' ? MAP_COLORS.pedway : MAP_COLORS.comfortRoute;
+      return { key: idx, positions: pos, color };
+    });
+  }, [coloredSegments]);
 
   const center = useMemo(() => {
     if (positions.length > 0) {
@@ -52,12 +62,20 @@ export default function WebMap({ routeCoords, origin, destination }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {positions.length > 1 && (
-          <Polyline
-            positions={positions}
-            pathOptions={{ color: MAP_COLORS.comfortRoute, weight: 5 }}
-          />
-        )}
+        {segmentPolylines
+          ? segmentPolylines.map(({ key, positions: pos, color }) => (
+              <Polyline
+                key={key}
+                positions={pos}
+                pathOptions={{ color, weight: 5 }}
+              />
+            ))
+          : positions.length > 1 && (
+              <Polyline
+                positions={positions}
+                pathOptions={{ color: MAP_COLORS.comfortRoute, weight: 5 }}
+              />
+            )}
         {origin && (
           <Marker position={[origin.lat, origin.lng]}>
             <Popup>Origin</Popup>

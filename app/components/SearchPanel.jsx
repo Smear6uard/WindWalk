@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  FlatList,
 } from 'react-native';
 import colors from '../constants/colors';
 import { geocodeAddress } from '../utils/geocode';
@@ -122,11 +121,15 @@ export default function SearchPanel() {
         />
         {activeField === 'origin' && !!suggestions.length && (
           <View style={styles.suggestionsContainer}>
-            <FlatList
-              data={suggestions}
-              keyExtractor={(item) => item.id}
-              renderItem={renderSuggestion}
-            />
+            {suggestions.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.suggestion}
+                onPress={() => handleSelectSuggestion(item)}
+              >
+                <Text style={styles.suggestionText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </View>
@@ -145,11 +148,15 @@ export default function SearchPanel() {
         />
         {activeField === 'destination' && !!suggestions.length && (
           <View style={styles.suggestionsContainer}>
-            <FlatList
-              data={suggestions}
-              keyExtractor={(item) => item.id}
-              renderItem={renderSuggestion}
-            />
+            {suggestions.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.suggestion}
+                onPress={() => handleSelectSuggestion(item)}
+              >
+                <Text style={styles.suggestionText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </View>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { RouteProvider } from './context/RouteContext';
 import colors from './constants/colors';
@@ -10,8 +11,9 @@ import RouteCards from './components/RouteCards';
 
 export default function App() {
   return (
-    <RouteProvider>
-      <SafeAreaView style={styles.shell}>
+    <SafeAreaProvider>
+      <RouteProvider>
+        <SafeAreaView style={styles.shell}>
         <StatusBar style="light" />
         <ScrollView
           style={styles.scroll}
@@ -29,8 +31,9 @@ export default function App() {
             <RouteCards />
           </View>
         </ScrollView>
-      </SafeAreaView>
-    </RouteProvider>
+        </SafeAreaView>
+      </RouteProvider>
+    </SafeAreaProvider>
   );
 }
 
