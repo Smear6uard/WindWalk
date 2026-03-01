@@ -15,8 +15,8 @@ export const MAP_COLORS = {
   pedway: '#7C83FD',
   origin: '#4ECDC4',
   destination: '#FF6B6B',
-  /** Wind tunnel streets - high amplification for current wind direction */
-  windyStreet: 'rgba(255, 107, 107, 0.6)',
+  /** Wind tunnel streets - subtle so route stays readable */
+  windyStreet: 'rgba(255, 107, 107, 0.35)',
 };
 
 export default {

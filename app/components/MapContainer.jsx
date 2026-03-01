@@ -76,13 +76,14 @@ export default function MapContainer() {
           initialRegion={initialRegion}
           showsUserLocation={false}
         >
-          {/* Wind tunnel streets - drawn first so route appears on top */}
+          {/* Wind tunnel streets - drawn first, thinner, lower zIndex so route stays on top */}
           {showWindStreets && windyPolylines.map(({ key, coords }) => (
             <Polyline
               key={key}
               coordinates={coordsToLatLng(coords)}
               strokeColor={MAP_COLORS.windyStreet}
-              strokeWidth={4}
+              strokeWidth={2}
+              zIndex={1}
             />
           ))}
           {coloredSegments.length > 0
@@ -94,6 +95,7 @@ export default function MapContainer() {
                     seg.type === 'pedway' ? MAP_COLORS.pedway : MAP_COLORS.comfortRoute
                   }
                   strokeWidth={5}
+                  zIndex={10}
                 />
               ))
             : routeCoords.length > 1 && (
@@ -101,6 +103,7 @@ export default function MapContainer() {
                   coordinates={routeCoords}
                   strokeColor={MAP_COLORS.comfortRoute}
                   strokeWidth={5}
+                  zIndex={10}
                 />
               )}
           {origin && (

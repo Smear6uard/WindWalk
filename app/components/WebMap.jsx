@@ -78,7 +78,7 @@ export default function WebMap({ routeCoords, coloredSegments, origin, destinati
           <Polyline
             key={key}
             positions={pos}
-            pathOptions={{ color: MAP_COLORS.windyStreet, weight: 4 }}
+            pathOptions={{ color: MAP_COLORS.windyStreet, weight: 2 }}
           />
         ))}
         {segmentPolylines
