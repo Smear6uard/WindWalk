@@ -62,8 +62,8 @@ def weather():
 
 
 # Amplification threshold: streets with amp >= this are "windy" for current wind
-# Data max ~1.22 for aligned streets; use 1.12 to show streets with noticeable channeling
-WINDY_STREET_THRESHOLD = 1.12
+# Data max ~1.23; 1.12 captured 63% of segments (too many). 1.20 = top ~37% (strong channeling only)
+WINDY_STREET_THRESHOLD = 1.20
 
 
 @app.get("/api/wind-streets")
