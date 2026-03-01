@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRoute } from '../context/RouteContext';
 import { API_URL } from '../constants/config';
@@ -6,17 +6,36 @@ import { colors } from '../constants/colors';
 
 export default function WeatherBar() {
   const { weather, setWeather } = useRoute();
+  const [fetchFailed, setFetchFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setFetchFailed(false);
     fetch(`${API_URL}/api/weather`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data) setWeather(data);
+        if (!cancelled) {
+          if (data) {
+            setWeather(data);
+            setFetchFailed(false);
+          } else {
+            setFetchFailed(true);
+          }
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setFetchFailed(true);
+      });
     return () => { cancelled = true; };
   }, [setWeather]);
+
+  if (fetchFailed) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.unavailableText}>Weather unavailable</Text>
+      </View>
+    );
+  }
 
   if (weather == null) return null;
 
@@ -61,5 +80,9 @@ const styles = StyleSheet.create({
   wind: {
     fontSize: 14,
     color: colors.text,
+  },
+  unavailableText: {
+    fontSize: 14,
+    color: colors.textMuted,
   },
 });
