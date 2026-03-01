@@ -27,19 +27,23 @@ const PLACES = [
     label: 'Chicago Pedway – Randolph & Wabash',
     coordinates: { lat: 41.8841, lng: -87.6264 },
   },
+  {
+    id: 'block37',
+    label: 'Block 37, Chicago',
+    coordinates: { lat: 41.8837, lng: -87.6278 },
+  },
 ];
 
 export async function geocodeAddress(query) {
-  if (!query || !query.trim()) {
-    return [];
+  const q = (query || '').trim().toLowerCase();
+
+  // Empty query returns all places (for showing suggestions on focus).
+  if (!q) {
+    return [...PLACES];
   }
 
-  const q = query.trim().toLowerCase();
-
-  // Very simple substring search over the fixed list.
+  // Substring search over the fixed list.
   const matches = PLACES.filter((p) => p.label.toLowerCase().includes(q));
-
-  // Simulate async API shape used by the rest of the app.
   return matches;
 }
 

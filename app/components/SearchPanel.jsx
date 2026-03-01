@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import colors from '../constants/colors';
 import { geocodeAddress } from '../utils/geocode';
 import { useRoute } from '../context/RouteContext';
 
+const DEBOUNCE_MS = 300;
+
 export default function SearchPanel() {
   const { setOrigin, setDestination, fetchRoutes, loading } = useRoute();
 
@@ -21,6 +23,10 @@ export default function SearchPanel() {
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
+
+  const originDebounceRef = useRef(null);
+  const destDebounceRef = useRef(null);
+  const skipNextSearchRef = useRef(false);
 
   const handleSearch = async (value, field) => {
     setError(null);
@@ -37,7 +43,38 @@ export default function SearchPanel() {
     }
   };
 
+  useEffect(() => {
+    const q = originQuery.trim();
+    if (originDebounceRef.current) clearTimeout(originDebounceRef.current);
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      return;
+    }
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+    originDebounceRef.current = setTimeout(() => handleSearch(q, 'origin'), DEBOUNCE_MS);
+    return () => { if (originDebounceRef.current) clearTimeout(originDebounceRef.current); };
+  }, [originQuery]);
+
+  useEffect(() => {
+    const q = destQuery.trim();
+    if (destDebounceRef.current) clearTimeout(destDebounceRef.current);
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      return;
+    }
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+    destDebounceRef.current = setTimeout(() => handleSearch(q, 'destination'), DEBOUNCE_MS);
+    return () => { if (destDebounceRef.current) clearTimeout(destDebounceRef.current); };
+  }, [destQuery]);
+
   const handleSelectSuggestion = (item) => {
+    skipNextSearchRef.current = true;
     if (activeField === 'origin') {
       setOrigin(item.coordinates);
       setOriginQuery(item.label);
@@ -79,9 +116,19 @@ export default function SearchPanel() {
           placeholderTextColor={colors.textMuted}
           value={originQuery}
           onChangeText={setOriginQuery}
+          onFocus={() => handleSearch(originQuery.trim(), 'origin')}
           onSubmitEditing={() => handleSearch(originQuery, 'origin')}
           returnKeyType="search"
         />
+        {activeField === 'origin' && !!suggestions.length && (
+          <View style={styles.suggestionsContainer}>
+            <FlatList
+              data={suggestions}
+              keyExtractor={(item) => item.id}
+              renderItem={renderSuggestion}
+            />
+          </View>
+        )}
       </View>
 
       <View style={styles.fieldGroup}>
@@ -92,25 +139,25 @@ export default function SearchPanel() {
           placeholderTextColor={colors.textMuted}
           value={destQuery}
           onChangeText={setDestQuery}
+          onFocus={() => handleSearch(destQuery.trim(), 'destination')}
           onSubmitEditing={() => handleSearch(destQuery, 'destination')}
           returnKeyType="search"
         />
+        {activeField === 'destination' && !!suggestions.length && (
+          <View style={styles.suggestionsContainer}>
+            <FlatList
+              data={suggestions}
+              keyExtractor={(item) => item.id}
+              renderItem={renderSuggestion}
+            />
+          </View>
+        )}
       </View>
 
       {searching && (
         <View style={styles.inlineStatus}>
           <ActivityIndicator size="small" color={colors.accent} />
           <Text style={styles.statusText}>Searching addresses…</Text>
-        </View>
-      )}
-
-      {!!suggestions.length && (
-        <View style={styles.suggestionsContainer}>
-          <FlatList
-            data={suggestions}
-            keyExtractor={(item) => item.id}
-            renderItem={renderSuggestion}
-          />
         </View>
       )}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { RouteProvider } from './context/RouteContext';
 import colors from './constants/colors';
@@ -13,16 +13,22 @@ export default function App() {
     <RouteProvider>
       <SafeAreaView style={styles.shell}>
         <StatusBar style="light" />
-        <View style={styles.top}>
-          <WeatherBar />
-          <SearchPanel />
-        </View>
-        <View style={styles.middle}>
-          <MapContainer />
-        </View>
-        <View style={styles.bottom}>
-          <RouteCards />
-        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.top}>
+            <WeatherBar />
+            <SearchPanel />
+          </View>
+          <View style={styles.middle}>
+            <MapContainer />
+          </View>
+          <View style={styles.bottom}>
+            <RouteCards />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </RouteProvider>
   );
@@ -33,14 +39,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  top: {
+  scroll: {
     flex: 1,
-    justifyContent: 'flex-start',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
+  top: {
+    flexGrow: 0,
   },
   middle: {
-    flex: 2,
+    minHeight: 280,
+    marginTop: 8,
   },
   bottom: {
-    flex: 1,
+    flexGrow: 0,
+    marginTop: 8,
   },
 });

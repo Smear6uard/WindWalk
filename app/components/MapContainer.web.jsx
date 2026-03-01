@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import MapView, { Polyline, Marker } from 'react-native-maps';
+import WebMap from './WebMap';
 import colors from '../constants/colors';
-import { MAP_COLORS, LOOP_CENTER, ZOOM_DEFAULTS } from '../constants/mapConfig';
 import { useRoute } from '../context/RouteContext';
 
 function coordsToLatLng(coords) {
@@ -23,28 +22,6 @@ export default function MapContainer() {
     return coordsToLatLng(selected.geometry.coordinates);
   }, [selected]);
 
-  const initialRegion = useMemo(() => {
-    if (routeCoords.length > 0) {
-      const lats = routeCoords.map((c) => c.latitude);
-      const lngs = routeCoords.map((c) => c.longitude);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLng = Math.min(...lngs);
-      const maxLng = Math.max(...lngs);
-      const padding = 0.002;
-      return {
-        latitude: (minLat + maxLat) / 2,
-        longitude: (minLng + maxLng) / 2,
-        latitudeDelta: Math.max(maxLat - minLat + padding, 0.005),
-        longitudeDelta: Math.max(maxLng - minLng + padding, 0.005),
-      };
-    }
-    return {
-      ...LOOP_CENTER,
-      ...ZOOM_DEFAULTS,
-    };
-  }, [routeCoords]);
-
   if (!selected) {
     return (
       <View style={styles.empty}>
@@ -61,33 +38,11 @@ export default function MapContainer() {
   return (
     <View style={styles.container}>
       <View style={styles.mapWrap}>
-        <MapView
-          style={styles.map}
-          initialRegion={initialRegion}
-          showsUserLocation={false}
-        >
-          {routeCoords.length > 1 && (
-            <Polyline
-              coordinates={routeCoords}
-              strokeColor={MAP_COLORS.comfortRoute}
-              strokeWidth={5}
-            />
-          )}
-          {origin && (
-            <Marker
-              coordinate={{ latitude: origin.lat, longitude: origin.lng }}
-              title="Origin"
-              pinColor={MAP_COLORS.origin}
-            />
-          )}
-          {destination && (
-            <Marker
-              coordinate={{ latitude: destination.lat, longitude: destination.lng }}
-              title="Destination"
-              pinColor={MAP_COLORS.destination}
-            />
-          )}
-        </MapView>
+        <WebMap
+          routeCoords={routeCoords}
+          origin={origin}
+          destination={destination}
+        />
       </View>
       <View style={styles.infoRow}>
         <Text style={styles.heading}>{selected.label}</Text>
@@ -120,10 +75,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
-  map: {
-    width: '100%',
-    height: '100%',
-  },
   infoRow: {
     padding: 12,
   },
@@ -147,9 +98,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgePedway: {
-    backgroundColor: colors.pedway,
-  },
   badgeWind: {
     backgroundColor: colors.accent,
   },
@@ -157,11 +105,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 11,
     fontWeight: '500',
-  },
-  helper: {
-    marginTop: 8,
-    color: colors.textMuted,
-    fontSize: 11,
   },
   empty: {
     flexGrow: 0,
@@ -180,4 +123,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
