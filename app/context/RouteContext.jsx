@@ -33,6 +33,25 @@ export function RouteProvider({ children }) {
     }
   }, [origin, destination]);
 
+  const fetchRoutesWithStops = useCallback(async (o, d) => {
+    if (!o?.lat || !o?.lng || !d?.lat || !d?.lng) return;
+    setOrigin(o);
+    setDestination(d);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchRoute(o, d);
+      setRoutes(data.routes ?? data);
+      setWeather(data.weather ?? null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch routes');
+      setRoutes(null);
+      setWeather(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     origin,
     setOrigin,
@@ -49,6 +68,7 @@ export function RouteProvider({ children }) {
     error,
     setError,
     fetchRoutes,
+    fetchRoutesWithStops,
   };
 
   return (

@@ -4,6 +4,8 @@ import { RouteProvider } from './context/RouteContext';
 import { colors } from './constants/colors';
 import WeatherBar from './components/WeatherBar';
 import SearchPanel from './components/SearchPanel';
+import DemoButtons from './components/DemoButtons';
+import RouteCards from './components/RouteCards';
 
 function AppContent() {
   return (
@@ -18,7 +20,8 @@ function AppContent() {
         <Text style={styles.placeholder}>MapContainer</Text>
       </View>
       <View style={styles.slot}>
-        <Text style={styles.placeholder}>RouteCards</Text>
+        <DemoButtons />
+        <RouteCards />
       </View>
       <StatusBar style="light" />
     </SafeAreaView>
