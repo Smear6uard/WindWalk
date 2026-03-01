@@ -1,0 +1,14 @@
+{
+  "name": "windwalk",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npm start --prefix app",
+    "android": "npm run android --prefix app",
+    "ios": "npm run ios --prefix app",
+    "web": "npm run web --prefix app"
+  },
+  "dependencies": {
+    "uvicorn": "^0.0.1-security"
+  }
+}
