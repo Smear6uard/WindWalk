@@ -62,6 +62,15 @@ export default function RouteCards() {
     ? { shortest: routes.find((r) => r.id === 'shortest'), comfort: routes.find((r) => r.id === 'comfort') }
     : routes;
 
+  const hasNoRoutes = !list.shortest && !list.comfort;
+  if (hasNoRoutes) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No routes found. Try different locations.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <RouteCard
@@ -87,6 +96,16 @@ export default function RouteCards() {
 }
 
 const styles = StyleSheet.create({
+  emptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
+  },
   container: {
     flexDirection: 'row',
     gap: 12,
