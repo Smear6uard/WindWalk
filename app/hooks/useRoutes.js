@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { API_URL } from '../constants/config';
 
 const EMPTY_ROUTES = {
-  shortest: [],
-  comfort: [],
+  shortest: null,
+  comfort: null,
 };
 
 function hasCoordPair(coord) {
@@ -32,11 +33,14 @@ export default function useRoutes(origin, destination, options = {}) {
       }
 
       try {
-        const response = await fetch('/api/route', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ origin, destination }),
+        const params = new URLSearchParams({
+          origin_lat: origin[0].toString(),
+          origin_lng: origin[1].toString(),
+          dest_lat: destination[0].toString(),
+          dest_lng: destination[1].toString(),
         });
+
+        const response = await fetch(`${API_URL}/api/route?${params}`);
 
         if (!response.ok) {
           throw new Error(`Route request failed with status ${response.status}`);
@@ -45,9 +49,8 @@ export default function useRoutes(origin, destination, options = {}) {
         const data = await response.json();
         if (isActive) {
           setRoutes({
-            shortest: Array.isArray(data?.shortest) ? data.shortest : [],
-            comfort: Array.isArray(data?.comfort) ? data.comfort : [],
-            pedway: Array.isArray(data?.pedway) ? data.pedway : [],
+            shortest: data?.shortest ?? null,
+            comfort: data?.comfort ?? null,
           });
         }
       } catch {

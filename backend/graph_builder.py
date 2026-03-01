@@ -9,8 +9,8 @@ import networkx as nx
 
 from utils import haversine
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "wind_amplification.json")
-PEDWAY_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "pedway_network.json")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "wind_amplification.json")
+PEDWAY_PATH = os.path.join(os.path.dirname(__file__), "data", "pedway_network.json")
 
 # 16-point compass directions
 DIRECTIONS = [
