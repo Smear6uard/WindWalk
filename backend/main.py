@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from graph_builder import build_graph
 from routing import find_routes
 from weather import get_weather_or_mock
+from transit_stations import is_near_transit_station
 
 logger = logging.getLogger("windwalk")
 
@@ -20,8 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Build graph once at startup (covers Chicago Loop + pedway)
-GRAPH = build_graph()
+# Build graphs at startup: default (no CTA transfer tunnels) and with CTA transfers
+GRAPH = build_graph(include_cta_transfers=False)
+GRAPH_WITH_CTA = build_graph(include_cta_transfers=True)
 
 
 def _route_to_api_format(route_dict: dict, route_id: str, label: str) -> dict:
@@ -72,7 +74,12 @@ def route(
         if "wind_direction" not in wx and "wind_direction_deg" in wx:
             from utils import deg_to_compass
             wx["wind_direction"] = deg_to_compass(wx["wind_direction_deg"])
-        result = find_routes(origin_lat, origin_lng, dest_lat, dest_lng, wx, GRAPH)
+        # Use CTA transfer tunnels (e.g. Jackson Red-Blue) only when both endpoints are transit stations
+        graph = GRAPH_WITH_CTA if (
+            is_near_transit_station(origin_lat, origin_lng)
+            and is_near_transit_station(dest_lat, dest_lng)
+        ) else GRAPH
+        result = find_routes(origin_lat, origin_lng, dest_lat, dest_lng, wx, graph)
     except Exception as e:
         logger.exception("Routing failed")
         raise

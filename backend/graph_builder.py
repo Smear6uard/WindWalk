@@ -88,14 +88,22 @@ def load_wind_data() -> dict:
         return json.load(f)
 
 
-def _load_pedway_data() -> dict | None:
-    """Load pedway network JSON if it exists, otherwise return None."""
+def _load_pedway_data(include_cta_transfers: bool = False) -> dict | None:
+    """Load pedway network JSON if it exists, otherwise return None.
+
+    When include_cta_transfers is False, segments with cta_transfer_only=true
+    (e.g. Jackson Red-Blue tunnel) are excluded — they require a fare.
+    """
     if not os.path.exists(PEDWAY_PATH):
         print(f"[graph_builder] {PEDWAY_PATH} not found — skipping pedway data")
         return None
     with open(PEDWAY_PATH) as f:
         data = json.load(f)
-    print(f"[graph_builder] Loaded {len(data.get('segments', []))} pedway segments")
+    segments = data.get("segments", [])
+    if not include_cta_transfers:
+        segments = [s for s in segments if not s.get("cta_transfer_only", False)]
+    data = {"segments": segments}
+    print(f"[graph_builder] Loaded {len(segments)} pedway segments")
     return data
 
 
@@ -120,12 +128,13 @@ _ZERO_AMP = {d: 0.0 for d in DIRECTIONS}
 _UNIT_AMP = {d: 1.0 for d in DIRECTIONS}
 
 
-def build_graph(data: dict | None = None) -> nx.Graph:
+def build_graph(data: dict | None = None, include_cta_transfers: bool = False) -> nx.Graph:
     """Build a NetworkX graph from wind amplification segment data.
 
     Nodes are (lat, lng) tuples.
     Edge attributes: segment_id, distance, street_name, amplification, is_pedway.
     Pedway segments are loaded from PEDWAY_PATH and stitched to the street network.
+    When include_cta_transfers is False, fare-required CTA transfer tunnels are excluded.
     """
     if data is None:
         data = load_wind_data()
@@ -152,7 +161,7 @@ def build_graph(data: dict | None = None) -> nx.Graph:
         )
 
     # --- Pedway integration ---
-    pedway_data = _load_pedway_data()
+    pedway_data = _load_pedway_data(include_cta_transfers=include_cta_transfers)
     if pedway_data:
         # Snapshot street nodes before adding pedway nodes
         street_nodes = list(G.nodes)

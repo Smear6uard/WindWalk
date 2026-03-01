@@ -131,6 +131,42 @@
       "distance_m": 215,
       "is_accessible": true,
       "hours": "7:00am-6:00pm"
+    },
+    {
+      "segment_id": "pedway_013",
+      "name": "Jackson Red Line to Jackson Blue Line",
+      "surface_entry": [41.8782, -87.6276],
+      "surface_exit": [41.8782, -87.6293],
+      "entry_description": "Jackson (Red Line) at State Street, underground transfer tunnel.",
+      "exit_description": "Jackson (Blue Line) at Dearborn Street, underground transfer tunnel.",
+      "distance_m": 130,
+      "is_accessible": true,
+      "hours": "4:00am-1:00am",
+      "cta_transfer_only": true
+    },
+    {
+      "segment_id": "pedway_014",
+      "name": "Lake (Red Line) to Washington (Blue Line)",
+      "surface_entry": [41.8848, -87.6278],
+      "surface_exit": [41.8832, -87.6294],
+      "entry_description": "Lake (Red Line) at State Street, transfer tunnel through Block 37.",
+      "exit_description": "Washington (Blue Line) at Dearborn Street, transfer tunnel through Block 37.",
+      "distance_m": 200,
+      "is_accessible": true,
+      "hours": "4:00am-1:00am",
+      "cta_transfer_only": true
+    },
+    {
+      "segment_id": "pedway_015",
+      "name": "Roosevelt Red Line to Roosevelt Orange/Green",
+      "surface_entry": [41.8674, -87.6274],
+      "surface_exit": [41.8674, -87.6266],
+      "entry_description": "Roosevelt (Red Line) at State Street, underground transfer tunnel.",
+      "exit_description": "Roosevelt (Orange/Green) at Wabash Avenue, underground transfer tunnel.",
+      "distance_m": 100,
+      "is_accessible": true,
+      "hours": "4:00am-1:00am",
+      "cta_transfer_only": true
     }
   ],
   "entry_points": [

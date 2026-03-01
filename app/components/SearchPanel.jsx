@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import colors from '../constants/colors';
 import { geocodeAddress } from '../utils/geocode';
 import { useRoute } from '../context/RouteContext';
@@ -14,7 +15,7 @@ import { useRoute } from '../context/RouteContext';
 const DEBOUNCE_MS = 300;
 
 export default function SearchPanel() {
-  const { setOrigin, setDestination, fetchRoutes, loading } = useRoute();
+  const { origin, destination, setOrigin, setDestination, fetchRoutes, loading } = useRoute();
 
   const [originQuery, setOriginQuery] = useState('');
   const [destQuery, setDestQuery] = useState('');
@@ -85,6 +86,19 @@ export default function SearchPanel() {
     setActiveField(null);
   };
 
+  const handleSwap = () => {
+    const prevOrigin = originQuery;
+    const prevDest = destQuery;
+    setOriginQuery(prevDest);
+    setDestQuery(prevOrigin);
+    if (origin && destination) {
+      setOrigin(destination);
+      setDestination(origin);
+    }
+    setSuggestions([]);
+    setActiveField(null);
+  };
+
   const handleSubmitRoute = async () => {
     setError(null);
     try {
@@ -132,6 +146,16 @@ export default function SearchPanel() {
             ))}
           </View>
         )}
+      </View>
+
+      <View style={styles.swapRow}>
+        <TouchableOpacity
+          style={styles.swapButton}
+          onPress={handleSwap}
+          accessibilityLabel="Swap start and end locations"
+        >
+          <Ionicons name="swap-vertical" size={22} color={colors.textMuted} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -202,6 +226,15 @@ const styles = StyleSheet.create({
   },
   fieldGroup: {
     marginTop: 4,
+  },
+  swapRow: {
+    alignItems: 'center',
+    marginVertical: -4,
+  },
+  swapButton: {
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceLight,
   },
   label: {
     color: colors.textMuted,
