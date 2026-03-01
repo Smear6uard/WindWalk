@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { RouteProvider } from './context/RouteContext';
@@ -14,12 +14,7 @@ export default function App() {
     <SafeAreaProvider>
       <RouteProvider>
         <SafeAreaView style={styles.shell}>
-        <StatusBar style="light" />
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+          <StatusBar style="light" />
           <View style={styles.top}>
             <WeatherBar />
             <SearchPanel />
@@ -30,7 +25,6 @@ export default function App() {
           <View style={styles.bottom}>
             <RouteCards />
           </View>
-        </ScrollView>
         </SafeAreaView>
       </RouteProvider>
     </SafeAreaProvider>
@@ -42,22 +36,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 24,
-  },
   top: {
     flexGrow: 0,
   },
   middle: {
-    minHeight: 280,
+    flex: 1,
+    minHeight: 300,
     marginTop: 8,
   },
   bottom: {
     flexGrow: 0,
     marginTop: 8,
+    paddingBottom: 12,
   },
 });

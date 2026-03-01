@@ -1,20 +1,24 @@
 import Constants from 'expo-constants';
 
-export const MAPBOX_TOKEN =
-  (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_MAPBOX_TOKEN) ||
-  '';
-
-/** Dev API URL: use PC's Wi‑Fi IP when on physical device so the phone can reach the backend.
- *  Avoid 172.17.x, 172.31.x (Docker/WSL) — use your Wi‑Fi adapter IP (e.g. 192.168.1.x). */
+/** Dev API URL: use your machine LAN IP so Expo Go devices can reach backend on port 8000. */
 function getDevApiUrl() {
   try {
-    const manifest = Constants.expoConfig ?? Constants.manifest ?? Constants.manifest2;
-    const host = manifest?.debuggerHost ?? manifest?.hostUri;
-    if (host && typeof host === 'string') {
-      const ip = host.split(':')[0];
+    const expoConfig = Constants.expoConfig ?? null;
+    const hostUri =
+      expoConfig?.hostUri ??
+      expoConfig?.extra?.expoClient?.hostUri ??
+      expoConfig?.extra?.expoGo?.debuggerHost ??
+      expoConfig?.debuggerHost ??
+      null;
+
+    if (hostUri && typeof hostUri === 'string') {
+      const ip = hostUri.split(':')[0];
       if (ip) return `http://${ip}:8000`;
     }
-  } catch (_) {}
+  } catch {
+    // Ignore and use localhost fallback.
+  }
+
   return 'http://localhost:8000';
 }
 

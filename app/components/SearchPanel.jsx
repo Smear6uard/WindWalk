@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,120 +6,193 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '../constants/colors';
 import { geocodeAddress } from '../utils/geocode';
 import { useRoute } from '../context/RouteContext';
 
-const DEBOUNCE_MS = 300;
+const DEBOUNCE_MS = 220;
+
+function normalizeResult(item) {
+  return {
+    id: item.id,
+    label: item.label,
+    coordinates: {
+      lat: Number(item.coordinates.lat),
+      lng: Number(item.coordinates.lng),
+    },
+  };
+}
+
+function isPoint(point) {
+  return (
+    point &&
+    typeof point === 'object' &&
+    typeof point.lat === 'number' &&
+    typeof point.lng === 'number'
+  );
+}
 
 export default function SearchPanel() {
-  const { origin, destination, setOrigin, setDestination, fetchRoutes, loading } = useRoute();
+  const {
+    origin,
+    destination,
+    setOrigin,
+    setDestination,
+    fetchRoutes,
+    loading,
+    error,
+    setError,
+  } = useRoute();
 
-  const [originQuery, setOriginQuery] = useState('');
-  const [destQuery, setDestQuery] = useState('');
+  const [originQuery, setOriginQuery] = useState(origin?.label ?? '');
+  const [destQuery, setDestQuery] = useState(destination?.label ?? '');
+
+  const [originSuggestions, setOriginSuggestions] = useState([]);
+  const [destSuggestions, setDestSuggestions] = useState([]);
   const [activeField, setActiveField] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState(null);
+  const [searchingField, setSearchingField] = useState(null);
 
   const originDebounceRef = useRef(null);
   const destDebounceRef = useRef(null);
-  const skipNextSearchRef = useRef(false);
 
-  const handleSearch = async (value, field) => {
-    setError(null);
-    setActiveField(field);
-    setSearching(true);
+  useEffect(() => {
+    setOriginQuery(origin?.label ?? originQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin?.label]);
+
+  useEffect(() => {
+    setDestQuery(destination?.label ?? destQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination?.label]);
+
+  const runSearch = async (field, queryText) => {
+    const trimmed = queryText.trim();
+    setSearchingField(field);
     try {
-      const results = await geocodeAddress(value);
-      setSuggestions(results);
-    } catch (e) {
-      setSuggestions([]);
-      setError('Unable to find that address.');
+      const results = await geocodeAddress(trimmed);
+      const normalized = results.map(normalizeResult);
+      if (field === 'origin') {
+        setOriginSuggestions(normalized);
+      } else {
+        setDestSuggestions(normalized);
+      }
+    } catch {
+      if (field === 'origin') {
+        setOriginSuggestions([]);
+      } else {
+        setDestSuggestions([]);
+      }
     } finally {
-      setSearching(false);
+      setSearchingField(null);
     }
   };
 
-  useEffect(() => {
-    const q = originQuery.trim();
-    if (originDebounceRef.current) clearTimeout(originDebounceRef.current);
-    if (skipNextSearchRef.current) {
-      skipNextSearchRef.current = false;
-      return;
+  const scheduleSearch = (field, nextText) => {
+    if (field === 'origin') {
+      if (originDebounceRef.current) {
+        clearTimeout(originDebounceRef.current);
+      }
+      originDebounceRef.current = setTimeout(() => {
+        runSearch('origin', nextText);
+      }, DEBOUNCE_MS);
+    } else {
+      if (destDebounceRef.current) {
+        clearTimeout(destDebounceRef.current);
+      }
+      destDebounceRef.current = setTimeout(() => {
+        runSearch('destination', nextText);
+      }, DEBOUNCE_MS);
     }
-    if (!q) {
-      setSuggestions([]);
-      return;
-    }
-    originDebounceRef.current = setTimeout(() => handleSearch(q, 'origin'), DEBOUNCE_MS);
-    return () => { if (originDebounceRef.current) clearTimeout(originDebounceRef.current); };
-  }, [originQuery]);
+  };
 
-  useEffect(() => {
-    const q = destQuery.trim();
-    if (destDebounceRef.current) clearTimeout(destDebounceRef.current);
-    if (skipNextSearchRef.current) {
-      skipNextSearchRef.current = false;
-      return;
-    }
-    if (!q) {
-      setSuggestions([]);
-      return;
-    }
-    destDebounceRef.current = setTimeout(() => handleSearch(q, 'destination'), DEBOUNCE_MS);
-    return () => { if (destDebounceRef.current) clearTimeout(destDebounceRef.current); };
-  }, [destQuery]);
+  const handleOriginChange = (text) => {
+    setOriginQuery(text);
+    setOrigin(null);
+    setActiveField('origin');
+    scheduleSearch('origin', text);
+  };
 
-  const handleSelectSuggestion = (item) => {
-    skipNextSearchRef.current = true;
-    if (activeField === 'origin') {
-      setOrigin(item.coordinates);
-      setOriginQuery(item.label);
-    } else if (activeField === 'destination') {
-      setDestination(item.coordinates);
-      setDestQuery(item.label);
+  const handleDestChange = (text) => {
+    setDestQuery(text);
+    setDestination(null);
+    setActiveField('destination');
+    scheduleSearch('destination', text);
+  };
+
+  const handleSelectSuggestion = (field, item) => {
+    const normalized = normalizeResult(item);
+    if (field === 'origin') {
+      setOrigin(normalized.coordinates);
+      setOriginQuery(normalized.label);
+      setOriginSuggestions([]);
+    } else {
+      setDestination(normalized.coordinates);
+      setDestQuery(normalized.label);
+      setDestSuggestions([]);
     }
-    setSuggestions([]);
     setActiveField(null);
+    setError?.(null);
+  };
+
+  const resolveFieldIfNeeded = async (field) => {
+    const existingPoint = field === 'origin' ? origin : destination;
+    if (isPoint(existingPoint)) return existingPoint;
+
+    const query = field === 'origin' ? originQuery.trim() : destQuery.trim();
+    if (!query) return null;
+
+    const results = await geocodeAddress(query);
+    const first = results[0];
+    if (!first) return null;
+
+    const normalized = normalizeResult(first);
+    handleSelectSuggestion(field, normalized);
+    return normalized.coordinates;
   };
 
   const handleSwap = () => {
-    const prevOrigin = originQuery;
-    const prevDest = destQuery;
-    setOriginQuery(prevDest);
-    setDestQuery(prevOrigin);
-    if (origin && destination) {
-      setOrigin(destination);
-      setDestination(origin);
-    }
-    setSuggestions([]);
+    const nextOriginQuery = destQuery;
+    const nextDestQuery = originQuery;
+    const nextOrigin = destination;
+    const nextDest = origin;
+
+    setOriginQuery(nextOriginQuery);
+    setDestQuery(nextDestQuery);
+    setOrigin(nextOrigin);
+    setDestination(nextDest);
+
+    setOriginSuggestions([]);
+    setDestSuggestions([]);
     setActiveField(null);
+    setError?.(null);
   };
 
   const handleSubmitRoute = async () => {
-    setError(null);
+    setError?.(null);
+
+    const resolvedOrigin = await resolveFieldIfNeeded('origin');
+    const resolvedDestination = await resolveFieldIfNeeded('destination');
+
+    if (!resolvedOrigin || !resolvedDestination) {
+      setError?.('Pick valid addresses from suggestions.');
+      return;
+    }
+
     try {
-      await fetchRoutes();
-    } catch (e) {
-      let msg = 'Unable to calculate route. Is the backend running?';
-      if (e?.name === 'AbortError') {
-        msg = 'Connection timed out. Use your PC\'s Wi‑Fi IP (192.168.x.x) in .env — not 172.17/172.31 (Docker/WSL). Restart with: npx expo start -c';
-      }
-      setError(msg);
+      await fetchRoutes({
+        origin: resolvedOrigin,
+        destination: resolvedDestination,
+      });
+    } catch {
+      setError?.('Unable to calculate route. Check backend connectivity.');
     }
   };
 
-  const renderSuggestion = ({ item }) => (
-    <TouchableOpacity
-      style={styles.suggestion}
-      onPress={() => handleSelectSuggestion(item)}
-    >
-      <Text style={styles.suggestionText}>{item.label}</Text>
-    </TouchableOpacity>
-  );
+  const showOriginSuggestions = activeField === 'origin' && originSuggestions.length > 0;
+  const showDestSuggestions = activeField === 'destination' && destSuggestions.length > 0;
 
   return (
     <View style={styles.container}>
@@ -132,24 +205,32 @@ export default function SearchPanel() {
           placeholder="Start address"
           placeholderTextColor={colors.textMuted}
           value={originQuery}
-          onChangeText={setOriginQuery}
-          onFocus={() => handleSearch(originQuery.trim(), 'origin')}
-          onSubmitEditing={() => handleSearch(originQuery, 'origin')}
+          onFocus={() => {
+            setActiveField('origin');
+            runSearch('origin', originQuery);
+          }}
+          onChangeText={handleOriginChange}
+          onSubmitEditing={() => {
+            if (originSuggestions[0]) {
+              handleSelectSuggestion('origin', originSuggestions[0]);
+            }
+          }}
           returnKeyType="search"
         />
-        {activeField === 'origin' && !!suggestions.length && (
-          <View style={styles.suggestionsContainer}>
-            {suggestions.map((item) => (
+
+        {showOriginSuggestions ? (
+          <ScrollView style={styles.suggestionsContainer} keyboardShouldPersistTaps="handled">
+            {originSuggestions.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.suggestion}
-                onPress={() => handleSelectSuggestion(item)}
+                onPress={() => handleSelectSuggestion('origin', item)}
               >
                 <Text style={styles.suggestionText}>{item.label}</Text>
               </TouchableOpacity>
             ))}
-          </View>
-        )}
+          </ScrollView>
+        ) : null}
       </View>
 
       <View style={styles.swapRow}>
@@ -169,34 +250,42 @@ export default function SearchPanel() {
           placeholder="Destination address"
           placeholderTextColor={colors.textMuted}
           value={destQuery}
-          onChangeText={setDestQuery}
-          onFocus={() => handleSearch(destQuery.trim(), 'destination')}
-          onSubmitEditing={() => handleSearch(destQuery, 'destination')}
+          onFocus={() => {
+            setActiveField('destination');
+            runSearch('destination', destQuery);
+          }}
+          onChangeText={handleDestChange}
+          onSubmitEditing={() => {
+            if (destSuggestions[0]) {
+              handleSelectSuggestion('destination', destSuggestions[0]);
+            }
+          }}
           returnKeyType="search"
         />
-        {activeField === 'destination' && !!suggestions.length && (
-          <View style={styles.suggestionsContainer}>
-            {suggestions.map((item) => (
+
+        {showDestSuggestions ? (
+          <ScrollView style={styles.suggestionsContainer} keyboardShouldPersistTaps="handled">
+            {destSuggestions.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.suggestion}
-                onPress={() => handleSelectSuggestion(item)}
+                onPress={() => handleSelectSuggestion('destination', item)}
               >
                 <Text style={styles.suggestionText}>{item.label}</Text>
               </TouchableOpacity>
             ))}
-          </View>
-        )}
+          </ScrollView>
+        ) : null}
       </View>
 
-      {searching && (
+      {searchingField ? (
         <View style={styles.inlineStatus}>
           <ActivityIndicator size="small" color={colors.accent} />
-          <Text style={styles.statusText}>Searching addresses…</Text>
+          <Text style={styles.statusText}>Searching {searchingField}...</Text>
         </View>
-      )}
+      ) : null}
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
@@ -206,7 +295,7 @@ export default function SearchPanel() {
         {loading ? (
           <ActivityIndicator size="small" color={colors.text} />
         ) : (
-          <Text style={styles.buttonText}>Find pedway route</Text>
+          <Text style={styles.buttonText}>Find Warmest Route</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -230,6 +319,8 @@ const styles = StyleSheet.create({
   },
   fieldGroup: {
     marginTop: 4,
+    position: 'relative',
+    zIndex: 5,
   },
   swapRow: {
     alignItems: 'center',
@@ -264,7 +355,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   suggestionsContainer: {
-    maxHeight: 160,
+    maxHeight: 172,
     marginTop: 8,
     borderRadius: 12,
     backgroundColor: colors.surfaceLight,
@@ -302,4 +393,3 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
-

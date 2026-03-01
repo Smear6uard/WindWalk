@@ -1,128 +1,196 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Switch } from 'react-native';
-import MapView, { Polyline, Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import colors from '../constants/colors';
-import { MAP_COLORS, LOOP_CENTER, ZOOM_DEFAULTS } from '../constants/mapConfig';
+import { LOOP_CENTER, MAP_COLORS, ZOOM_DEFAULTS } from '../constants/mapConfig';
 import { useRoute } from '../context/RouteContext';
-import { getColoredRouteSegments } from '../utils/routeUtils';
+import RouteLine from './RouteLine';
 
 function coordsToLatLng(coords) {
-  if (!coords || !Array.isArray(coords)) return [];
-  return coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
+  if (!Array.isArray(coords)) return [];
+  return coords
+    .map((point) => {
+      if (!Array.isArray(point) || point.length < 2) return null;
+      const lng = Number(point[0]);
+      const lat = Number(point[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return { latitude: lat, longitude: lng };
+    })
+    .filter(Boolean);
+}
+
+function findRouteById(routes, id) {
+  if (!routes) return null;
+  if (Array.isArray(routes)) {
+    return routes.find((route) => route.id === id) || null;
+  }
+  return routes[id] || null;
+}
+
+function getRouteList(routes) {
+  if (!routes) return [];
+  if (Array.isArray(routes)) return routes;
+  return Object.values(routes).filter(Boolean);
+}
+
+function toMapPoint(point) {
+  if (!point || typeof point.lat !== 'number' || typeof point.lng !== 'number') {
+    return null;
+  }
+  return { latitude: point.lat, longitude: point.lng };
+}
+
+function extractPedwaySegments(route) {
+  const coordinates = route?.geometry?.coordinates;
+  const segments = route?.segments;
+  if (!Array.isArray(coordinates) || !Array.isArray(segments)) return [];
+  if (coordinates.length !== segments.length + 1) return [];
+
+  const pedway = [];
+  for (let i = 0; i < segments.length; i += 1) {
+    const seg = segments[i];
+    const isPedway = seg?.type === 'pedway' || seg?.is_pedway === true;
+    if (!isPedway) continue;
+    const pair = coordsToLatLng([coordinates[i], coordinates[i + 1]]);
+    if (pair.length === 2) {
+      pedway.push(pair);
+    }
+  }
+  return pedway;
 }
 
 export default function MapContainer() {
   const { routes, activeRoute, origin, destination, windStreets } = useRoute();
   const [showWindStreets, setShowWindStreets] = useState(true);
+  const mapRef = useRef(null);
+  const lastFittedPathRef = useRef('');
+  const routeList = useMemo(() => getRouteList(routes), [routes]);
 
-  const selected = useMemo(() => {
-    if (!routes || !routes.length) return null;
-    return routes.find((r) => r.id === activeRoute) ?? routes[0];
-  }, [routes, activeRoute]);
+  const shortestRoute = useMemo(() => {
+    const shortest = findRouteById(routes, 'shortest');
+    return coordsToLatLng(shortest?.geometry?.coordinates);
+  }, [routes]);
 
-  const routeCoords = useMemo(() => {
-    if (!selected?.geometry?.coordinates) return [];
-    return coordsToLatLng(selected.geometry.coordinates);
-  }, [selected]);
+  const comfortRoute = useMemo(() => {
+    const comfort = findRouteById(routes, 'comfort');
+    return coordsToLatLng(comfort?.geometry?.coordinates);
+  }, [routes]);
 
-  const coloredSegments = useMemo(() => {
-    if (!selected?.geometry || !selected?.segments?.length) return [];
-    return getColoredRouteSegments(selected.geometry, selected.segments);
-  }, [selected]);
+  const selectedRoute = useMemo(() => {
+    const preferred = findRouteById(routes, activeRoute);
+    if (preferred) return preferred;
+    return (
+      findRouteById(routes, 'comfort') ||
+      findRouteById(routes, 'shortest') ||
+      routeList[0] ||
+      null
+    );
+  }, [activeRoute, routeList, routes]);
+
+  const selectedRouteCoords = useMemo(
+    () => coordsToLatLng(selectedRoute?.geometry?.coordinates),
+    [selectedRoute]
+  );
+
+  const selectedPath = useMemo(() => {
+    if (activeRoute === 'shortest' && shortestRoute.length > 1) return shortestRoute;
+    if (activeRoute === 'comfort' && comfortRoute.length > 1) return comfortRoute;
+    if (comfortRoute.length > 1) return comfortRoute;
+    if (shortestRoute.length > 1) return shortestRoute;
+    return selectedRouteCoords;
+  }, [activeRoute, comfortRoute, selectedRouteCoords, shortestRoute]);
+
+  const pedwaySegments = useMemo(() => extractPedwaySegments(selectedRoute), [selectedRoute]);
 
   const windyPolylines = useMemo(() => {
     const features = windStreets?.features ?? [];
-    return features.map((f, i) => ({
-      key: `windy-${i}`,
-      coords: f.geometry?.coordinates ?? [],
-    })).filter((p) => p.coords.length >= 2);
+    return features
+      .map((feature, index) => ({
+        key: `windy-${index}`,
+        coords: coordsToLatLng(feature?.geometry?.coordinates),
+      }))
+      .filter((entry) => entry.coords.length > 1);
   }, [windStreets]);
 
-  const initialRegion = useMemo(() => {
-    if (routeCoords.length > 0) {
-      const lats = routeCoords.map((c) => c.latitude);
-      const lngs = routeCoords.map((c) => c.longitude);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLng = Math.min(...lngs);
-      const maxLng = Math.max(...lngs);
-      const padding = 0.002;
-      return {
-        latitude: (minLat + maxLat) / 2,
-        longitude: (minLng + maxLng) / 2,
-        latitudeDelta: Math.max(maxLat - minLat + padding, 0.005),
-        longitudeDelta: Math.max(maxLng - minLng + padding, 0.005),
-      };
-    }
-    return {
-      ...LOOP_CENTER,
-      ...ZOOM_DEFAULTS,
-    };
-  }, [routeCoords]);
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (selectedPath.length < 2) return;
+    const pathKey = selectedPath
+      .map((point) => `${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`)
+      .join('|');
+    if (lastFittedPathRef.current === pathKey) return;
+    lastFittedPathRef.current = pathKey;
 
-  // Always show map (Loop view); overlay windy streets and/or route when available
+    mapRef.current.fitToCoordinates(selectedPath, {
+      edgePadding: { top: 80, right: 60, bottom: 220, left: 60 },
+      animated: true,
+    });
+  }, [selectedPath]);
 
-  const totalSegments = (selected?.segments ?? []).length;
-  const pedwaySegments = (selected?.segments ?? []).filter(
-    (s) => s.type === 'pedway'
+  const totalSegments = (selectedRoute?.segments ?? []).length;
+  const pedwayCount = (selectedRoute?.segments ?? []).filter(
+    (segment) => segment.type === 'pedway' || segment.is_pedway === true
   ).length;
 
   return (
     <View style={styles.container}>
       <View style={styles.mapWrap}>
         <MapView
-          key={`route-${activeRoute}-${selected?.id ?? 'wind'}`}
+          ref={mapRef}
           style={styles.map}
-          initialRegion={initialRegion}
+          initialRegion={{
+            ...LOOP_CENTER,
+            ...ZOOM_DEFAULTS,
+          }}
           showsUserLocation={false}
         >
-          {/* Wind tunnel streets - drawn first, thinner, lower zIndex so route stays on top */}
-          {showWindStreets && windyPolylines.map(({ key, coords }) => (
+          {showWindStreets &&
+            windyPolylines.map(({ key, coords }) => (
+              <Polyline
+                key={key}
+                coordinates={coords}
+                strokeColor={MAP_COLORS.windyStreet}
+                strokeWidth={2}
+                zIndex={1}
+              />
+            ))}
+
+          <RouteLine
+            shortestRoute={shortestRoute}
+            comfortRoute={comfortRoute}
+            activeRoute={activeRoute}
+          />
+
+          {shortestRoute.length <= 1 && comfortRoute.length <= 1 && selectedPath.length > 1 ? (
             <Polyline
-              key={key}
-              coordinates={coordsToLatLng(coords)}
-              strokeColor={MAP_COLORS.windyStreet}
-              strokeWidth={2}
-              zIndex={1}
+              coordinates={selectedPath}
+              strokeColor={MAP_COLORS.comfortRoute}
+              strokeWidth={5}
+              zIndex={9}
+            />
+          ) : null}
+
+          {pedwaySegments.map((segment, index) => (
+            <Polyline
+              key={`pedway-${index}`}
+              coordinates={segment}
+              strokeColor={MAP_COLORS.pedway}
+              strokeWidth={6}
+              lineDashPattern={[10, 8]}
+              zIndex={12}
             />
           ))}
-          {coloredSegments.length > 0
-            ? coloredSegments.map((seg, idx) => (
-                <Polyline
-                  key={`${activeRoute}-${idx}-${seg.type}`}
-                  coordinates={coordsToLatLng(seg.coordinates)}
-                  strokeColor={
-                    seg.type === 'pedway' ? MAP_COLORS.pedway : MAP_COLORS.comfortRoute
-                  }
-                  strokeWidth={5}
-                  zIndex={10}
-                />
-              ))
-            : routeCoords.length > 1 && (
-                <Polyline
-                  coordinates={routeCoords}
-                  strokeColor={MAP_COLORS.comfortRoute}
-                  strokeWidth={5}
-                  zIndex={10}
-                />
-              )}
-          {origin && (
-            <Marker
-              coordinate={{ latitude: origin.lat, longitude: origin.lng }}
-              title="Origin"
-              pinColor={MAP_COLORS.origin}
-            />
-          )}
-          {destination && (
-            <Marker
-              coordinate={{ latitude: destination.lat, longitude: destination.lng }}
-              title="Destination"
-              pinColor={MAP_COLORS.destination}
-            />
-          )}
+
+          {origin ? (
+            <Marker coordinate={toMapPoint(origin)} title="Origin" pinColor={MAP_COLORS.origin} />
+          ) : null}
+          {destination ? (
+            <Marker coordinate={toMapPoint(destination)} title="Destination" pinColor={MAP_COLORS.destination} />
+          ) : null}
         </MapView>
       </View>
-      {windStreets?.features?.length > 0 && (
+
+      {windStreets?.features?.length > 0 ? (
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendSwatch, { backgroundColor: MAP_COLORS.windyStreet }]} />
@@ -133,34 +201,28 @@ export default function MapContainer() {
             onValueChange={setShowWindStreets}
             trackColor={{ false: colors.surfaceLight, true: colors.accent }}
             thumbColor={colors.text}
-            accessibilityLabel="Toggle wind tunnel streets on map"
+            accessibilityLabel="Toggle wind tunnel streets"
           />
         </View>
-      )}
-      {selected && (
+      ) : null}
+
+      {selectedRoute ? (
         <View style={styles.infoRow}>
-          <Text style={styles.heading}>{selected.label}</Text>
+          <Text style={styles.heading}>{selectedRoute.label}</Text>
           <Text style={styles.sub}>
-            {(selected.distance_m / 1000).toFixed(2)} km • {selected.duration_min} min •{' '}
-            {pedwaySegments}/{totalSegments} pedway
+            {(selectedRoute.distance_m / 1000).toFixed(2)} km | {selectedRoute.duration_min} min | {pedwayCount}/
+            {totalSegments} pedway
           </Text>
           <View style={styles.badgesRow}>
             <View style={[styles.badge, styles.badgeWind]}>
-              <Text style={styles.badgeText}>Wind: {selected.wind_exposure}</Text>
+              <Text style={styles.badgeText}>Wind: {selectedRoute.wind_exposure}</Text>
             </View>
           </View>
         </View>
-      )}
-      {!selected && (
+      ) : (
         <View style={styles.infoRow}>
-          <Text style={styles.heading}>
-            {windStreets?.features?.length > 0 ? 'Wind map' : 'Chicago Loop'}
-          </Text>
-          <Text style={styles.sub}>
-            {windStreets?.features?.length > 0
-              ? `Streets in red are wind tunnels for current wind (${windStreets.wind_direction}). Enter addresses to plan a route that avoids them.`
-              : 'Enter start and end addresses to plan your pedway route. Start the backend to see wind tunnel streets.'}
-          </Text>
+          <Text style={styles.heading}>Chicago Loop</Text>
+          <Text style={styles.sub}>Enter origin and destination to generate shortest and WindWalk paths.</Text>
         </View>
       )}
     </View>
@@ -177,10 +239,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   mapWrap: {
-    height: 200,
+    height: 260,
     width: '100%',
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
   },
   legendRow: {
     flexDirection: 'row',
@@ -201,10 +267,6 @@ const styles = StyleSheet.create({
   legendText: {
     color: colors.textMuted,
     fontSize: 11,
-  },
-  map: {
-    width: '100%',
-    height: '100%',
   },
   infoRow: {
     padding: 12,
@@ -229,9 +291,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgePedway: {
-    backgroundColor: colors.pedway,
-  },
   badgeWind: {
     backgroundColor: colors.accent,
   },
@@ -240,26 +299,4 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
-  helper: {
-    marginTop: 8,
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-  empty: {
-    flexGrow: 0,
-    minHeight: 72,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    padding: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-  },
 });
-

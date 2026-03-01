@@ -10,6 +10,59 @@ WALK_SPEED_M_PER_MIN = 80  # ~4.8 km/h
 SNAP_THRESHOLD_M = 15  # If snapped node is > this far from requested point, add connector leg
 
 
+def _edge_key(a: tuple, b: tuple) -> tuple:
+    """Order-independent key for an undirected edge."""
+    return tuple(sorted((a, b)))
+
+
+def _compute_comfort_path(graph, origin, dest, wind_speed, wind_dir, temp_f, shortest_path):
+    """Compute comfort path and try to avoid identical result to shortest path."""
+    comfort_path = nx.shortest_path(
+        graph,
+        origin,
+        dest,
+        weight=lambda u, v, d: compute_edge_weight(d, wind_speed, wind_dir, temp_f),
+    )
+
+    if comfort_path != shortest_path:
+        return comfort_path
+
+    shortest_edges = {
+        _edge_key(shortest_path[i], shortest_path[i + 1])
+        for i in range(len(shortest_path) - 1)
+    }
+
+    def diversified_weight(u, v, d):
+        base = compute_edge_weight(d, wind_speed, wind_dir, temp_f)
+        if _edge_key(u, v) in shortest_edges:
+            return base * 1.4
+        return base
+
+    alt_path = nx.shortest_path(
+        graph,
+        origin,
+        dest,
+        weight=diversified_weight,
+    )
+    if alt_path != shortest_path:
+        return alt_path
+
+    try:
+        simple_paths = nx.shortest_simple_paths(
+            graph,
+            origin,
+            dest,
+            weight=diversified_weight,
+        )
+        for path in simple_paths:
+            if path != shortest_path:
+                return path
+    except Exception:
+        pass
+
+    return comfort_path
+
+
 def _build_path_result(
     graph: nx.Graph,
     path: list[tuple],
@@ -137,11 +190,14 @@ def find_routes(
         shortest_path = nx.shortest_path(
             graph, origin, dest, weight="distance",
         )
-        comfort_path = nx.shortest_path(
+        comfort_path = _compute_comfort_path(
             graph,
             origin,
             dest,
-            weight=lambda u, v, d: compute_edge_weight(d, wind_speed, wind_dir, temp_f),
+            wind_speed,
+            wind_dir,
+            temp_f,
+            shortest_path,
         )
     except (nx.NetworkXNoPath, nx.NodeNotFound):
         return {"error": "No walking path exists between origin and destination."}

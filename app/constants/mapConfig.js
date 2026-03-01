@@ -10,10 +10,10 @@ export const ZOOM_DEFAULTS = {
 
 export const MAP_COLORS = {
   background: '#1a1a2e',
-  comfortRoute: '#4ECDC4',
+  comfortRoute: '#3B82F6',
   shortestRoute: '#FF6B6B',
   pedway: '#7C83FD',
-  origin: '#4ECDC4',
+  origin: '#3B82F6',
   destination: '#FF6B6B',
   /** Wind tunnel streets - subtle so route stays readable */
   windyStreet: 'rgba(255, 107, 107, 0.35)',

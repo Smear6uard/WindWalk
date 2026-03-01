@@ -11,6 +11,7 @@ Import in the routing engine:
 import os
 import time
 import json
+import random
 
 import requests
 
@@ -135,7 +136,27 @@ def get_weather() -> dict:
     return _cache_result
 
 
-def get_weather_or_mock() -> dict:
+def _mock_weather_variant(seed_value: float) -> dict:
+    random.seed(seed_value)
+    temp_delta = random.randint(-4, 4)
+    wind_delta = random.randint(-5, 5)
+
+    temp_f = max(-5, min(45, MOCK_WEATHER["temp_f"] + temp_delta))
+    wind_speed = max(3, min(35, MOCK_WEATHER["wind_speed_mph"] + wind_delta))
+    feels_like = wind_chill_f(temp_f, wind_speed)
+    direction_index = int(seed_value) % len(_COMPASS_16)
+
+    data = MOCK_WEATHER.copy()
+    data["temp_f"] = temp_f
+    data["wind_speed_mph"] = wind_speed
+    data["wind_direction"] = _COMPASS_16[direction_index]
+    data["wind_direction_deg"] = direction_index * 22.5
+    data["feels_like_f"] = feels_like
+    data["computed_wind_chill_f"] = feels_like
+    return data
+
+
+def get_weather_or_mock(refresh: bool = False) -> dict:
     """
     Return live weather if OPENWEATHERMAP_API_KEY is set, otherwise a hardcoded mock (for development).
     Prints a warning to stdout when using mock data.
@@ -143,6 +164,8 @@ def get_weather_or_mock() -> dict:
     if os.environ.get("OPENWEATHERMAP_API_KEY", "").strip():
         return get_weather()
     print("Warning: OPENWEATHERMAP_API_KEY not set; using mock weather data.", flush=True)
+    if refresh:
+        return _mock_weather_variant(time.time())
     return MOCK_WEATHER.copy()
 
 

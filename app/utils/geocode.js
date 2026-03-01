@@ -1,113 +1,140 @@
-// Simple in-memory "geocoding" without any external map service.
-// This lets the search bar work using a fixed list of known places.
-import { MAPBOX_TOKEN } from '../constants/config';
+const LOOP_VIEWBOX = '-87.642,41.89,-87.622,41.873';
 
-const LOOP_BBOX = '-87.642,41.873,-87.622,41.89';
-
-// Suggested places shown when the dropdown opens (empty query)
-// Includes landmarks plus CTA L and Metra stations within the Loop bounding box
 const SUGGESTED_PLACES = [
-  // Landmarks
   { id: 'willis', label: 'Willis Tower, Chicago', coordinates: { lat: 41.8789, lng: -87.6359 } },
   { id: 'millennium', label: 'Millennium Park, Chicago', coordinates: { lat: 41.8826, lng: -87.6226 } },
   { id: 'merchmart', label: 'Merchandise Mart, Chicago', coordinates: { lat: 41.8884, lng: -87.6354 } },
-  { id: 'pedway1', label: 'Chicago Pedway – Randolph & Wabash', coordinates: { lat: 41.8841, lng: -87.6264 } },
   { id: 'block37', label: 'Block 37, Chicago', coordinates: { lat: 41.8837, lng: -87.6278 } },
-  // Buildings (Jackson Blvd)
-  { id: 'depaul_center', label: 'DePaul Center (1 E Jackson Blvd)', coordinates: { lat: 41.8789, lng: -87.6267 } },
-  { id: 'lewis_center', label: 'Lewis Center (25 E Jackson Blvd)', coordinates: { lat: 41.8789, lng: -87.6260 } },
-  { id: 'daley_building', label: 'Daley Building (14 E Jackson Blvd)', coordinates: { lat: 41.8787, lng: -87.6264 } },
-  { id: 'cna_building', label: 'DePaul CDM at CNA Building (Chicago)', coordinates: { lat: 41.8784, lng: -87.6260 } },
-  // Metra stations (Loop)
-  { id: 'metra-union', label: 'Union Station (Metra)', coordinates: { lat: 41.8786, lng: -87.6406 } },
-  { id: 'metra-ogilvie', label: 'Ogilvie Transportation Center (Metra)', coordinates: { lat: 41.8827, lng: -87.6403 } },
-  { id: 'metra-lasalle', label: 'LaSalle Street Station (Metra)', coordinates: { lat: 41.8755, lng: -87.6324 } },
-  { id: 'metra-millennium', label: 'Millennium Station (Metra Electric)', coordinates: { lat: 41.8859, lng: -87.6235 } },
-  { id: 'metra-vanburen', label: 'Van Buren Street (Metra Electric)', coordinates: { lat: 41.8773, lng: -87.6288 } },
-  // CTA L stations (Loop & downtown)
-  { id: 'cta-adams-wabash', label: 'Adams/Wabash (CTA)', coordinates: { lat: 41.8795, lng: -87.6261 } },
-  { id: 'cta-washington-wabash', label: 'Washington/Wabash (CTA)', coordinates: { lat: 41.8832, lng: -87.6262 } },
-  { id: 'cta-state-lake', label: 'State/Lake (CTA)', coordinates: { lat: 41.8857, lng: -87.6278 } },
-  { id: 'cta-clark-lake', label: 'Clark/Lake (CTA)', coordinates: { lat: 41.8857, lng: -87.6309 } },
-  { id: 'cta-washington-wells', label: 'Washington/Wells (CTA)', coordinates: { lat: 41.8827, lng: -87.6339 } },
-  { id: 'cta-quincy-wells', label: 'Quincy/Wells (CTA)', coordinates: { lat: 41.8787, lng: -87.6337 } },
-  { id: 'cta-library', label: 'Harold Washington Library (CTA)', coordinates: { lat: 41.8769, lng: -87.6282 } },
-  { id: 'cta-monroe-blue', label: 'Monroe (Blue Line)', coordinates: { lat: 41.8807, lng: -87.6294 } },
-  { id: 'cta-washington-dearborn', label: 'Washington (Blue Line)', coordinates: { lat: 41.8832, lng: -87.6294 } },
-  { id: 'cta-jackson-dearborn', label: 'Jackson (Blue Line)', coordinates: { lat: 41.8782, lng: -87.6293 } },
-  { id: 'cta-jackson-state', label: 'Jackson (Red Line)', coordinates: { lat: 41.8782, lng: -87.6276 } },
-  { id: 'cta-monroe-state', label: 'Monroe (Red Line)', coordinates: { lat: 41.8807, lng: -87.6277 } },
-  { id: 'cta-harrison', label: 'Harrison (Red Line)', coordinates: { lat: 41.874, lng: -87.6275 } },
-  { id: 'cta-lasalle-vanburen', label: 'LaSalle/Van Buren (CTA)', coordinates: { lat: 41.8769, lng: -87.6317 } },
-  { id: 'cta-lasalle', label: 'LaSalle (Blue Line)', coordinates: { lat: 41.8756, lng: -87.6317 } },
-  { id: 'cta-clinton-lake', label: 'Clinton (Green/Pink)', coordinates: { lat: 41.8857, lng: -87.6418 } },
-  { id: 'cta-clinton-congress', label: 'Clinton (Blue Line)', coordinates: { lat: 41.8755, lng: -87.641 } },
-  { id: 'cta-merchandise-mart', label: 'Merchandise Mart (CTA Brown/Purple)', coordinates: { lat: 41.889, lng: -87.634 } },
-  { id: 'cta-roosevelt-wabash', label: 'Roosevelt (Orange/Green)', coordinates: { lat: 41.8674, lng: -87.6266 } },
-  { id: 'cta-roosevelt-state', label: 'Roosevelt (Red Line)', coordinates: { lat: 41.8674, lng: -87.6274 } },
+  {
+    id: 'depaul_center',
+    label: 'DePaul Center (1 E Jackson Blvd)',
+    aliases: ['depaul', 'jcdm', 'jarvis college', 'cdm', 'depaul jcdm building'],
+    coordinates: { lat: 41.8789, lng: -87.6267 },
+  },
+  {
+    id: 'depaul_cdm',
+    label: 'DePaul CDM (243 S Wabash Ave)',
+    aliases: ['depaul cdm', 'jcdm', 'jarvis college of computing', 'college of computing'],
+    coordinates: { lat: 41.8786, lng: -87.6262 },
+  },
+  {
+    id: 'lewis_center',
+    label: 'Lewis Center (25 E Jackson Blvd)',
+    aliases: ['lewis', 'depaul lewis'],
+    coordinates: { lat: 41.8789, lng: -87.626 },
+  },
+  { id: 'metra-union', label: 'Union Station (Metra)', aliases: ['union station'], coordinates: { lat: 41.8786, lng: -87.6406 } },
+  { id: 'metra-ogilvie', label: 'Ogilvie Transportation Center (Metra)', aliases: ['ogilvie'], coordinates: { lat: 41.8827, lng: -87.6403 } },
+  { id: 'metra-lasalle', label: 'LaSalle Street Station (Metra)', aliases: ['lasalle metra'], coordinates: { lat: 41.8755, lng: -87.6324 } },
+  { id: 'metra-millennium', label: 'Millennium Station (Metra Electric)', aliases: ['millennium station'], coordinates: { lat: 41.8859, lng: -87.6235 } },
+  { id: 'cta-adams-wabash', label: 'Adams/Wabash (CTA)', aliases: ['adams wabash'], coordinates: { lat: 41.8795, lng: -87.6261 } },
+  { id: 'cta-washington-wabash', label: 'Washington/Wabash (CTA)', aliases: ['washington wabash'], coordinates: { lat: 41.8832, lng: -87.6262 } },
+  { id: 'cta-state-lake', label: 'State/Lake (CTA)', aliases: ['state lake'], coordinates: { lat: 41.8857, lng: -87.6278 } },
+  { id: 'cta-clark-lake', label: 'Clark/Lake (CTA)', aliases: ['clark lake'], coordinates: { lat: 41.8857, lng: -87.6309 } },
+  { id: 'cta-jackson-blue', label: 'Jackson (Blue Line)', aliases: ['jackson blue'], coordinates: { lat: 41.8782, lng: -87.6293 } },
+  { id: 'cta-jackson-red', label: 'Jackson (Red Line)', aliases: ['jackson red'], coordinates: { lat: 41.8782, lng: -87.6276 } },
 ];
 
-function isNear(a, b, threshold = 0.0002) {
-  return Math.abs(a.lat - b.lat) < threshold && Math.abs(a.lng - b.lng) < threshold;
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-// When user types, put matching SUGGESTED_PLACES (transit, DePaul buildings, etc.) first
-function prioritizeSuggestedMatches(query, results) {
-  const lower = query.toLowerCase();
-  const suggestedMatches = SUGGESTED_PLACES.filter((p) =>
-    p.label.toLowerCase().includes(lower)
-  );
-  if (suggestedMatches.length === 0) return results;
+function queryTokens(query) {
+  const normalized = normalizeText(query);
+  if (!normalized) return [];
 
-  const seen = new Set(suggestedMatches.map((p) => `${p.coordinates.lat},${p.coordinates.lng}`));
-  const rest = results.filter((r) => {
-    const key = `${r.coordinates.lat},${r.coordinates.lng}`;
+  const tokenMap = {
+    jcdm: 'cdm',
+    jarvis: 'cdm',
+    depaul: 'depaul',
+  };
+
+  return normalized
+    .split(' ')
+    .filter(Boolean)
+    .map((token) => tokenMap[token] || token);
+}
+
+function matchScore(place, tokens) {
+  if (!tokens.length) return 0;
+  const haystack = normalizeText(`${place.label} ${(place.aliases || []).join(' ')}`);
+  let score = 0;
+  for (const token of tokens) {
+    if (haystack.includes(token)) {
+      score += haystack.startsWith(token) ? 3 : 1;
+    }
+  }
+  return score;
+}
+
+function rankSuggested(query) {
+  const tokens = queryTokens(query);
+  if (!tokens.length) {
+    return [...SUGGESTED_PLACES];
+  }
+
+  return SUGGESTED_PLACES
+    .map((place) => ({ place, score: matchScore(place, tokens) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.place);
+}
+
+function dedupeByLabel(results) {
+  const seen = new Set();
+  return results.filter((item) => {
+    const key = normalizeText(item.label);
     if (seen.has(key)) return false;
-    const dup = suggestedMatches.some((t) => isNear(r.coordinates, t.coordinates));
-    if (dup) return false;
+    seen.add(key);
     return true;
   });
-  return [...suggestedMatches, ...rest];
 }
 
-/**
- * Geocode an address or place name in the Chicago Loop.
- * - Empty query: returns suggested places for the dropdown.
- * - With Mapbox token: calls Mapbox Geocoding API (Loop bbox).
- * - Without token or on error: falls back to substring match on suggested places.
- */
+async function queryNominatim(query) {
+  const encoded = encodeURIComponent(query);
+  const url =
+    `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&countrycodes=us` +
+    `&bounded=1&viewbox=${encodeURIComponent(LOOP_VIEWBOX)}&q=${encoded}`;
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Nominatim geocode failed (${response.status})`);
+  }
+
+  const results = await response.json();
+  return (Array.isArray(results) ? results : []).map((entry, index) => ({
+    id: entry.place_id ? `osm-${entry.place_id}` : `osm-${index}`,
+    label: entry.display_name || entry.name || query,
+    coordinates: {
+      lat: Number(entry.lat),
+      lng: Number(entry.lon),
+    },
+  }));
+}
+
 export async function geocodeAddress(query) {
   const q = (query || '').trim();
-
-  // Empty query returns suggested places for initial dropdown
   if (!q) {
     return [...SUGGESTED_PLACES];
   }
 
-  if (MAPBOX_TOKEN) {
-    try {
-      const encoded = encodeURIComponent(q);
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${MAPBOX_TOKEN}&bbox=${LOOP_BBOX}&limit=10`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Mapbox ${res.status}`);
-      const data = await res.json();
-      const features = data.features || [];
-      const mapboxResults = features.map((f, i) => ({
-        id: f.id || `mapbox-${i}`,
-        label: f.place_name || f.text || 'Unknown',
-        coordinates: {
-          lat: f.center[1],
-          lng: f.center[0],
-        },
-      }));
-      return prioritizeSuggestedMatches(q, mapboxResults);
-    } catch (err) {
-      console.warn('Mapbox geocode failed, using fallback:', err?.message);
-    }
+  const rankedSuggested = rankSuggested(q);
+  if (rankedSuggested.length >= 3) {
+    return rankedSuggested.slice(0, 10);
   }
 
-  // Fallback: substring match on suggested places
-  const lower = q.toLowerCase();
-  const matches = SUGGESTED_PLACES.filter((p) => p.label.toLowerCase().includes(lower));
-  return prioritizeSuggestedMatches(q, matches);
+  try {
+    const osmResults = await queryNominatim(q);
+    return dedupeByLabel([...rankedSuggested, ...osmResults]).slice(0, 10);
+  } catch {
+    return rankedSuggested;
+  }
 }

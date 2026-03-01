@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from graph_builder import build_graph
 from routing import find_routes
-from weather import get_weather_or_mock
+from weather import get_weather_or_mock, invalidate_cache
 from transit_stations import is_near_transit_station
 
 logger = logging.getLogger("windwalk")
@@ -57,8 +57,10 @@ def health():
 
 
 @app.get("/api/weather")
-def weather():
-    return get_weather_or_mock()
+def weather(force_refresh: bool = Query(False)):
+    if force_refresh:
+        invalidate_cache()
+    return get_weather_or_mock(refresh=force_refresh)
 
 
 # Amplification threshold: streets with amp >= this are "windy" for current wind

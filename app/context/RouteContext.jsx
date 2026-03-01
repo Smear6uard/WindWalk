@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { API_URL } from '../constants/config';
-import { fetchRoute, fetchWindStreets } from '../utils/api';
+import { buildOfflineWeather, fetchRoute, fetchWindStreets } from '../utils/api';
 
 const RouteContext = createContext(null);
 
@@ -11,59 +11,100 @@ export function RouteProvider({ children }) {
   const [weather, setWeather] = useState(null);
   const [windStreets, setWindStreets] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [weatherLoading, setWeatherLoading] = useState(false);
   const [activeRoute, setActiveRoute] = useState('comfort');
+  const [error, setError] = useState(null);
 
-  // Fetch weather on mount so we can show windy streets before user enters a route
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/weather`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setWeather(data);
-        }
-      } catch {
-        // Ignore; weather will come from route fetch if user gets a route
+  const refreshWeather = useCallback(async ({ force = false } = {}) => {
+    setWeatherLoading(true);
+    try {
+      const url = force
+        ? `${API_URL}/api/weather?force_refresh=true`
+        : `${API_URL}/api/weather`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Weather request failed with ${res.status}`);
       }
-    })();
-    return () => { cancelled = true; };
+      const data = await res.json();
+      setWeather(data);
+      return data;
+    } catch {
+      const fallback = buildOfflineWeather(force ? Date.now() : 0);
+      setWeather(fallback);
+      return fallback;
+    } finally {
+      setWeatherLoading(false);
+    }
   }, []);
 
-  // Fetch windy street segments when we have wind direction
+  // Fetch weather on mount so wind streets are available before route search.
+  useEffect(() => {
+    refreshWeather();
+  }, [refreshWeather]);
+
+  const refreshWindStreets = useCallback(async (windDirection) => {
+    if (!windDirection) {
+      setWindStreets(null);
+      return;
+    }
+    try {
+      const data = await fetchWindStreets(windDirection);
+      setWindStreets(data);
+    } catch {
+      setWindStreets(null);
+    }
+  }, []);
+
+  // Fetch windy street segments whenever current wind direction changes.
   useEffect(() => {
     const wd = weather?.wind_direction;
     if (!wd) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchWindStreets(wd);
-        if (!cancelled) setWindStreets(data);
-      } catch {
-        if (!cancelled) setWindStreets(null);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [weather?.wind_direction]);
+    refreshWindStreets(wd);
+  }, [refreshWindStreets, weather?.wind_direction]);
 
-  const fetchRoutes = useCallback(async () => {
-    if (!origin || !destination) return;
+  const fetchRoutes = useCallback(async ({ origin: originOverride, destination: destinationOverride } = {}) => {
+    const routeOrigin = originOverride ?? origin;
+    const routeDestination = destinationOverride ?? destination;
+
+    if (!routeOrigin || !routeDestination) {
+      setError('Select both origin and destination.');
+      return;
+    }
+
     setLoading(true);
-    setRoutes(null);
-    setWeather(null);
+    setError(null);
+
     try {
-      const data = await fetchRoute(origin, destination);
-      setRoutes(data.routes ?? data);
-      setWeather(data.weather ?? null);
+      const data = await fetchRoute(routeOrigin, routeDestination);
+      const nextRoutes = Array.isArray(data?.routes) ? data.routes : [];
+      setRoutes(nextRoutes);
+      if (data?.weather) {
+        setWeather(data.weather);
+      } else {
+        await refreshWeather();
+      }
+      if (data?.fallback) {
+        setError('Backend is unreachable. Showing offline demo routes.');
+      }
+
+      const hasComfort = nextRoutes.some((route) => route.id === 'comfort');
+      const hasShortest = nextRoutes.some((route) => route.id === 'shortest');
+      if (hasComfort) {
+        setActiveRoute('comfort');
+      } else if (hasShortest) {
+        setActiveRoute('shortest');
+      } else if (nextRoutes[0]?.id) {
+        setActiveRoute(nextRoutes[0].id);
+      }
     } catch (err) {
       console.warn('Route fetch error:', err);
       setRoutes(null);
-      setWeather(null);
+      setError('Unable to calculate routes right now.');
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [origin, destination]);
+  }, [destination, origin, refreshWeather]);
 
   const value = {
     origin,
@@ -77,9 +118,14 @@ export function RouteProvider({ children }) {
     windStreets,
     loading,
     setLoading,
+    weatherLoading,
     activeRoute,
     setActiveRoute,
+    error,
+    setError,
     fetchRoutes,
+    refreshWeather,
+    refreshWindStreets,
   };
 
   return (

@@ -1,14 +1,45 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import colors from '../constants/colors';
+import { useRoute } from '../context/RouteContext';
 
-// Placeholder static weather bar; can be wired to backend /api/weather later.
 export default function WeatherBar() {
+  const { weather, weatherLoading, refreshWeather } = useRoute();
+
+  const handleRefresh = async () => {
+    await refreshWeather({ force: true });
+  };
+
+  const temp = weather?.temp_f ?? 28;
+  const feelsLike = weather?.feels_like_f ?? weather?.computed_wind_chill_f ?? temp;
+  const windSpeed = weather?.wind_speed_mph ?? 18;
+  const windDirection = weather?.wind_direction ?? 'NNW';
+
   return (
     <View style={styles.container}>
-      <Text style={styles.city}>Chicago</Text>
-      <Text style={styles.temp}>28°F</Text>
-      <Text style={styles.meta}>Wind 22 mph • Feels like 18°F</Text>
+      <View style={styles.left}>
+        <Text style={styles.city}>Chicago Loop</Text>
+        <Text style={styles.meta}>
+          Wind {windSpeed} mph {windDirection} | Feels like {Math.round(feelsLike)}F
+        </Text>
+      </View>
+
+      <View style={styles.right}>
+        <Text style={styles.temp}>{Math.round(temp)}F</Text>
+        <TouchableOpacity
+          style={styles.refreshBtn}
+          onPress={handleRefresh}
+          disabled={weatherLoading}
+          accessibilityLabel="Refresh weather forecast"
+        >
+          {weatherLoading ? (
+            <ActivityIndicator size="small" color={colors.text} />
+          ) : (
+            <Ionicons name="refresh" size={16} color={colors.text} />
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -25,6 +56,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  left: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   city: {
     color: colors.text,
     fontSize: 16,
@@ -37,7 +77,15 @@ const styles = StyleSheet.create({
   },
   meta: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  refreshBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
-

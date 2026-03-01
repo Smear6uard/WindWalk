@@ -1,15 +1,52 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import colors from '../constants/colors';
 import { useRoute } from '../context/RouteContext';
 
+function toRouteMap(routes) {
+  if (!routes) return { shortest: null, comfort: null, fallback: null };
+  if (Array.isArray(routes)) {
+    return {
+      shortest: routes.find((route) => route.id === 'shortest') || null,
+      comfort: routes.find((route) => route.id === 'comfort') || null,
+      fallback: routes.find((route) => route.id !== 'shortest' && route.id !== 'comfort') || null,
+    };
+  }
+  return {
+    shortest: routes.shortest || null,
+    comfort: routes.comfort || null,
+    fallback: null,
+  };
+}
+
+function RouteCard({ route, active, onPress, color, title }) {
+  if (!route) return null;
+
+  return (
+    <View style={[styles.card, active && { borderColor: color, borderWidth: 2 }]}>
+      <Text style={[styles.label, { color }]}>{title}</Text>
+      <Text style={styles.metric}>Distance: {(route.distance_m / 1000).toFixed(2)} km</Text>
+      <Text style={styles.metric}>Duration: {route.duration_min} min</Text>
+      <Text style={styles.metric}>Feels like: {Math.round(route.feels_like_avg_f ?? 0)}F</Text>
+      <Text style={styles.metric}>Pedway segments: {route.pedway_segments ?? 0}</Text>
+
+      <TouchableOpacity style={[styles.openButton, { backgroundColor: color }]} onPress={onPress}>
+        <Text style={styles.openButtonText}>Open Path</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function RouteCards() {
   const { routes, activeRoute, setActiveRoute } = useRoute();
 
-  if (!routes || !routes.length) {
+  const mapped = useMemo(() => toRouteMap(routes), [routes]);
+  const hasRoutes = !!(mapped.shortest || mapped.comfort || mapped.fallback);
+
+  if (!hasRoutes) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Enter two addresses to see available pedway routes.</Text>
+        <Text style={styles.emptyText}>Enter two addresses to see shortest and WindWalk routes.</Text>
       </View>
     );
   }
@@ -21,27 +58,31 @@ export default function RouteCards() {
       contentContainerStyle={styles.scrollContent}
       showsHorizontalScrollIndicator={false}
     >
-      {routes.map((route) => {
-        const isActive = activeRoute === route.id;
-        return (
-          <TouchableOpacity
-            key={route.id}
-            style={[styles.card, isActive && styles.cardActive]}
-            onPress={() => setActiveRoute(route.id)}
-          >
-            <Text style={styles.label}>{route.label}</Text>
-            <Text style={styles.metric}>
-              {(route.distance_m / 1000).toFixed(2)} km • {route.duration_min} min
-            </Text>
-            <Text style={styles.metric}>
-              Feels like {Math.round(route.feels_like_avg_f)}°F • Wind {route.wind_exposure}
-            </Text>
-            <Text style={styles.metric}>
-              Pedway segments: {route.pedway_segments ?? 0}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      <RouteCard
+        route={mapped.shortest}
+        active={activeRoute === 'shortest'}
+        onPress={() => setActiveRoute('shortest')}
+        color="#FF6B6B"
+        title="Shortest (Cold)"
+      />
+
+      <RouteCard
+        route={mapped.comfort}
+        active={activeRoute === 'comfort'}
+        onPress={() => setActiveRoute('comfort')}
+        color="#3B82F6"
+        title="WindWalk (Comfort)"
+      />
+
+      {!mapped.shortest && !mapped.comfort && mapped.fallback ? (
+        <RouteCard
+          route={mapped.fallback}
+          active={activeRoute === mapped.fallback.id}
+          onPress={() => setActiveRoute(mapped.fallback.id)}
+          color={colors.accent}
+          title={mapped.fallback.label || 'Route'}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -56,25 +97,34 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    width: 240,
+    width: 250,
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 12,
-  },
-  cardActive: {
-    borderWidth: 2,
-    borderColor: colors.pedway,
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
   },
   label: {
-    color: colors.text,
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   metric: {
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
+  },
+  openButton: {
+    marginTop: 10,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  openButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 13,
   },
   emptyContainer: {
     paddingHorizontal: 16,
@@ -85,4 +135,3 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
-
