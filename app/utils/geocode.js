@@ -47,32 +47,27 @@ const SUGGESTED_PLACES = [
   { id: 'cta-roosevelt-state', label: 'Roosevelt (Red Line)', coordinates: { lat: 41.8674, lng: -87.6274 } },
 ];
 
-// CTA and Metra stations (subset for prioritization when user types a match)
-const TRANSIT_STATIONS = SUGGESTED_PLACES.filter(
-  (p) => p.id.startsWith('cta-') || p.id.startsWith('metra-')
-);
-
 function isNear(a, b, threshold = 0.0002) {
   return Math.abs(a.lat - b.lat) < threshold && Math.abs(a.lng - b.lng) < threshold;
 }
 
-function prioritizeTransitMatches(query, results) {
+// When user types, put matching SUGGESTED_PLACES (transit, DePaul buildings, etc.) first
+function prioritizeSuggestedMatches(query, results) {
   const lower = query.toLowerCase();
-  const transitMatches = TRANSIT_STATIONS.filter((p) =>
+  const suggestedMatches = SUGGESTED_PLACES.filter((p) =>
     p.label.toLowerCase().includes(lower)
   );
-  if (transitMatches.length === 0) return results;
+  if (suggestedMatches.length === 0) return results;
 
-  // Put transit matches first; drop Mapbox results that duplicate them
-  const seen = new Set(transitMatches.map((p) => `${p.coordinates.lat},${p.coordinates.lng}`));
+  const seen = new Set(suggestedMatches.map((p) => `${p.coordinates.lat},${p.coordinates.lng}`));
   const rest = results.filter((r) => {
     const key = `${r.coordinates.lat},${r.coordinates.lng}`;
     if (seen.has(key)) return false;
-    const dup = transitMatches.some((t) => isNear(r.coordinates, t.coordinates));
+    const dup = suggestedMatches.some((t) => isNear(r.coordinates, t.coordinates));
     if (dup) return false;
     return true;
   });
-  return [...transitMatches, ...rest];
+  return [...suggestedMatches, ...rest];
 }
 
 /**
@@ -105,7 +100,7 @@ export async function geocodeAddress(query) {
           lng: f.center[0],
         },
       }));
-      return prioritizeTransitMatches(q, mapboxResults);
+      return prioritizeSuggestedMatches(q, mapboxResults);
     } catch (err) {
       console.warn('Mapbox geocode failed, using fallback:', err?.message);
     }
@@ -114,5 +109,5 @@ export async function geocodeAddress(query) {
   // Fallback: substring match on suggested places
   const lower = q.toLowerCase();
   const matches = SUGGESTED_PLACES.filter((p) => p.label.toLowerCase().includes(lower));
-  return prioritizeTransitMatches(q, matches);
+  return prioritizeSuggestedMatches(q, matches);
 }
