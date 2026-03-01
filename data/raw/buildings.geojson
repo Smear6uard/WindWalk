@@ -1,5 +1,8 @@
 {
-  "code" : "invalid_request",
-  "error" : true,
-  "message" : "Parameter 'format' is required"
+"type": "FeatureCollection",
+"name": "buildings",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+
+]
 }
