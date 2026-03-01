@@ -4,13 +4,21 @@ const EMPTY_WEATHER = {
   wind_direction: null,
 };
 
-export default function useWeather() {
+export default function useWeather(options = {}) {
+  const { enabled = true } = options;
   const [weather, setWeather] = useState(EMPTY_WEATHER);
 
   useEffect(() => {
     let isActive = true;
 
     async function fetchWeather() {
+      if (!enabled) {
+        if (isActive) {
+          setWeather(EMPTY_WEATHER);
+        }
+        return;
+      }
+
       try {
         const response = await fetch('/api/weather');
         if (!response.ok) {
@@ -37,7 +45,7 @@ export default function useWeather() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [enabled]);
 
   return weather;
 }

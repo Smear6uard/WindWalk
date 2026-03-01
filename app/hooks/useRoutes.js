@@ -9,13 +9,21 @@ function hasCoordPair(coord) {
   return Array.isArray(coord) && coord.length === 2 && coord.every((v) => typeof v === 'number');
 }
 
-export default function useRoutes(origin, destination) {
+export default function useRoutes(origin, destination, options = {}) {
+  const { enabled = true } = options;
   const [routes, setRoutes] = useState(EMPTY_ROUTES);
 
   useEffect(() => {
     let isActive = true;
 
     async function fetchRoutes() {
+      if (!enabled) {
+        if (isActive) {
+          setRoutes(EMPTY_ROUTES);
+        }
+        return;
+      }
+
       if (!hasCoordPair(origin) || !hasCoordPair(destination)) {
         if (isActive) {
           setRoutes(EMPTY_ROUTES);
@@ -53,7 +61,7 @@ export default function useRoutes(origin, destination) {
     return () => {
       isActive = false;
     };
-  }, [origin?.[0], origin?.[1], destination?.[0], destination?.[1]]);
+  }, [destination?.[0], destination?.[1], enabled, origin?.[0], origin?.[1]]);
 
   return routes;
 }

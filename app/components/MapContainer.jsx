@@ -47,15 +47,40 @@ function normalizeSegments(segments = []) {
     .filter((segment) => segment.length > 1);
 }
 
-export default function MapContainer({ origin, destination }) {
-  const routes = useRoutes(origin, destination);
-  const weather = useWeather();
+export default function MapContainer({
+  origin,
+  destination,
+  comfortRoute: comfortRouteOverride = [],
+  shortestRoute: shortestRouteOverride = [],
+  pedwaySegments: pedwaySegmentsOverride = [],
+  disableRemoteData = false,
+}) {
+  const routes = useRoutes(origin, destination, { enabled: !disableRemoteData });
+  const weather = useWeather({ enabled: !disableRemoteData });
 
   const originCoord = useMemo(() => toMapCoordinate(origin), [origin]);
   const destinationCoord = useMemo(() => toMapCoordinate(destination), [destination]);
-  const comfortRoute = useMemo(() => normalizePath(routes?.comfort), [routes?.comfort]);
-  const shortestRoute = useMemo(() => normalizePath(routes?.shortest), [routes?.shortest]);
-  const pedwaySegments = useMemo(() => normalizeSegments(routes?.pedway), [routes?.pedway]);
+
+  const comfortRoute = useMemo(() => {
+    if (comfortRouteOverride.length > 0) {
+      return normalizePath(comfortRouteOverride);
+    }
+    return normalizePath(routes?.comfort);
+  }, [comfortRouteOverride, routes?.comfort]);
+
+  const shortestRoute = useMemo(() => {
+    if (shortestRouteOverride.length > 0) {
+      return normalizePath(shortestRouteOverride);
+    }
+    return normalizePath(routes?.shortest);
+  }, [routes?.shortest, shortestRouteOverride]);
+
+  const pedwaySegments = useMemo(() => {
+    if (pedwaySegmentsOverride.length > 0) {
+      return normalizeSegments(pedwaySegmentsOverride);
+    }
+    return normalizeSegments(routes?.pedway);
+  }, [pedwaySegmentsOverride, routes?.pedway]);
 
   return (
     <View style={styles.container}>
