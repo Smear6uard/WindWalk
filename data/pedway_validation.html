@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedway validation map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    #map { height: 100vh; }
+    .legend { position: absolute; bottom: 24px; right: 24px; background: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; font-size: 13px; line-height: 1.5; }
+    .legend h4 { margin: 0 0 8px 0; }
+    .legend .swatch { display: inline-block; width: 24px; height: 4px; margin-right: 8px; vertical-align: middle; }
+    .legend .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 1px #333; margin-right: 8px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="legend">
+    <h4>Legend</h4>
+    <div><span class="swatch" style="background:#7C83FD; border-bottom: 2px dashed #7C83FD;"></span> Tunnel segment</div>
+    <div><span class="dot" style="background:#4ECDC4;"></span> Entry point</div>
+    <div><span class="dot" style="background:#FF6B6B;"></span> Exit point</div>
+    <p style="margin: 12px 0 0 0;">Segments: <strong id="segCount">0</strong> &nbsp; Entry points: <strong id="entryCount">0</strong></p>
+  </div>
+  <script>
+    var segments = [{"segment_id": "pedway_001", "name": "Block 37 to Macy's", "surface_entry": [41.8839, -87.6288], "surface_exit": [41.8834, -87.6278], "entry_description": "Street-level door on Washington Street at Dearborn, east side of Block 37.", "exit_description": "Staircase down to Pedway at State Street and Washington, north of Macy's.", "distance_m": 95, "is_accessible": true, "hours": "6:00am-midnight"}, {"segment_id": "pedway_002", "name": "Macy's to Chicago Cultural Center", "surface_entry": [41.8834, -87.6278], "surface_exit": [41.8846, -87.6245], "entry_description": "Pedway entrance at State and Washington, north of Macy's.", "exit_description": "Staircase up to Michigan Avenue at Randolph, south side of Chicago Cultural Center.", "distance_m": 310, "is_accessible": false, "hours": "6:00am-midnight"}, {"segment_id": "pedway_003", "name": "City Hall to County Building", "surface_entry": [41.8844, -87.6312], "surface_exit": [41.8834, -87.6312], "entry_description": "Street-level entrance on Randolph Street at Clark, City Hall (west) side.", "exit_description": "Door to Clark Street at Washington, County Building east entrance.", "distance_m": 115, "is_accessible": true, "hours": "7:00am-6:00pm"}, {"segment_id": "pedway_004", "name": "Daley Center to Block 37", "surface_entry": [41.8834, -87.6294], "surface_exit": [41.8839, -87.6288], "entry_description": "Pedway entrance at Dearborn and Washington, west side of Daley Plaza.", "exit_description": "Street-level door on Washington at Dearborn, Block 37.", "distance_m": 75, "is_accessible": true, "hours": "6:00am-midnight"}, {"segment_id": "pedway_005", "name": "Millennium Station to Prudential Plaza", "surface_entry": [41.8848, -87.6238], "surface_exit": [41.8844, -87.624], "entry_description": "Staircase at Randolph and Michigan, southwest corner, down to Millennium Station.", "exit_description": "Pedway exit into Prudential Plaza at Michigan and Randolph.", "distance_m": 55, "is_accessible": true, "hours": "5:00am-12:30am"}, {"segment_id": "pedway_006", "name": "Chase Tower to 190 S LaSalle", "surface_entry": [41.8808, -87.6294], "surface_exit": [41.8808, -87.6322], "entry_description": "Monroe Street entrance at Dearborn, Chase Tower lobby.", "exit_description": "LaSalle Street at Monroe, 190 S LaSalle building entrance.", "distance_m": 245, "is_accessible": true, "hours": "6:00am-7:00pm"}, {"segment_id": "pedway_007", "name": "Union Station to Citigroup Center", "surface_entry": [41.8788, -87.6395], "surface_exit": [41.8808, -87.6392], "entry_description": "Canal Street at Adams, Union Station concourse entrance.", "exit_description": "Canal Street at Monroe, Citigroup Center Pedway exit.", "distance_m": 235, "is_accessible": true, "hours": "5:00am-midnight"}, {"segment_id": "pedway_008", "name": "Block 37 to Daley Plaza", "surface_entry": [41.8839, -87.6288], "surface_exit": [41.8834, -87.6294], "entry_description": "Washington at Dearborn, Block 37 Pedway entrance.", "exit_description": "Dearborn at Washington, Daley Plaza west side entrance.", "distance_m": 65, "is_accessible": true, "hours": "6:00am-midnight"}, {"segment_id": "pedway_009", "name": "Millennium Station to Cultural Center", "surface_entry": [41.8848, -87.6238], "surface_exit": [41.8846, -87.6245], "entry_description": "Randolph and Michigan, Millennium Station north passage entrance.", "exit_description": "Michigan at Randolph, Chicago Cultural Center south entrance.", "distance_m": 85, "is_accessible": false, "hours": "5:00am-12:30am"}, {"segment_id": "pedway_010", "name": "Ogilvie Transportation Center to 500 W Madison", "surface_entry": [41.8816, -87.6395], "surface_exit": [41.8816, -87.6312], "entry_description": "Madison Street at Canal, Ogilvie Transportation Center concourse.", "exit_description": "Madison Street at Clark, 500 W Madison building lobby.", "distance_m": 715, "is_accessible": true, "hours": "5:00am-midnight"}, {"segment_id": "pedway_011", "name": "Randolph/Wabash CTA to Millennium Station", "surface_entry": [41.8846, -87.626], "surface_exit": [41.8848, -87.6238], "entry_description": "Randolph and Wabash, CTA L station mezzanine Pedway connection.", "exit_description": "Randolph and Michigan, Millennium Station concourse.", "distance_m": 195, "is_accessible": false, "hours": "5:00am-12:30am"}, {"segment_id": "pedway_012", "name": "City Hall to Daley Center", "surface_entry": [41.8844, -87.6312], "surface_exit": [41.8834, -87.6294], "entry_description": "Clark and Randolph, City Hall Pedway entrance.", "exit_description": "Dearborn and Washington, Daley Center plaza entrance.", "distance_m": 215, "is_accessible": true, "hours": "7:00am-6:00pm"}];
+    var entryPoints = [{"id": "entry_001", "name": "Block 37", "coordinates": [41.8839, -87.6288], "description": "Pedway entrance on Washington Street at Dearborn, east side of Block 37; also accessible from State and Randolph.", "connected_segments": ["pedway_001", "pedway_004", "pedway_008"]}, {"id": "entry_002", "name": "Macy's (State/Washington)", "coordinates": [41.8834, -87.6278], "description": "Staircase down to Pedway at State Street and Washington, north of Macy's.", "connected_segments": ["pedway_001", "pedway_002"]}, {"id": "entry_003", "name": "Chicago Cultural Center", "coordinates": [41.8846, -87.6245], "description": "Pedway exit at Michigan Avenue and Randolph, south side of Chicago Cultural Center.", "connected_segments": ["pedway_002", "pedway_009"]}, {"id": "entry_004", "name": "City Hall", "coordinates": [41.8844, -87.6312], "description": "Street-level Pedway entrance on Randolph at Clark, City Hall side of the building.", "connected_segments": ["pedway_003", "pedway_012"]}, {"id": "entry_005", "name": "County Building", "coordinates": [41.8834, -87.6312], "description": "Clark Street at Washington, County Building east entrance to Pedway.", "connected_segments": ["pedway_003"]}, {"id": "entry_006", "name": "Daley Center / Daley Plaza", "coordinates": [41.8834, -87.6294], "description": "Dearborn and Washington, west side of Daley Plaza; Pedway entrance near the Picasso.", "connected_segments": ["pedway_004", "pedway_008", "pedway_012"]}, {"id": "entry_007", "name": "Millennium Station", "coordinates": [41.8848, -87.6238], "description": "Stairway at Randolph and Michigan, southwest corner, down to Millennium Station (Metra Electric).", "connected_segments": ["pedway_005", "pedway_009", "pedway_011"]}, {"id": "entry_008", "name": "Prudential Plaza", "coordinates": [41.8844, -87.624], "description": "Pedway connection into Prudential Plaza at Michigan and Randolph.", "connected_segments": ["pedway_005"]}, {"id": "entry_009", "name": "Chase Tower", "coordinates": [41.8808, -87.6294], "description": "Monroe Street at Dearborn, Chase Tower lobby Pedway entrance.", "connected_segments": ["pedway_006"]}, {"id": "entry_010", "name": "190 S LaSalle", "coordinates": [41.8808, -87.6322], "description": "LaSalle Street at Monroe, 190 S LaSalle building entrance to Pedway.", "connected_segments": ["pedway_006"]}, {"id": "entry_011", "name": "Union Station", "coordinates": [41.8788, -87.6395], "description": "Canal Street at Adams, Union Station concourse; follow signs to Pedway.", "connected_segments": ["pedway_007"]}, {"id": "entry_012", "name": "Citigroup Center", "coordinates": [41.8808, -87.6392], "description": "Canal Street at Monroe, Citigroup Center Pedway exit to street.", "connected_segments": ["pedway_007"]}, {"id": "entry_013", "name": "Ogilvie Transportation Center", "coordinates": [41.8816, -87.6395], "description": "Madison Street at Canal, Ogilvie concourse; Pedway runs east under Madison.", "connected_segments": ["pedway_010"]}, {"id": "entry_014", "name": "500 W Madison", "coordinates": [41.8816, -87.6312], "description": "Madison Street at Clark, 500 W Madison building lobby Pedway entrance.", "connected_segments": ["pedway_010"]}, {"id": "entry_015", "name": "Randolph/Wabash CTA", "coordinates": [41.8846, -87.626], "description": "Randolph and Wabash, CTA L station; Pedway connection from mezzanine level.", "connected_segments": ["pedway_011"]}];
+
+    var map = L.map("map").setView([41.8825, -87.6280], 16);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
+
+    segments.forEach(function(seg) {
+      var entry = seg.surface_entry;
+      var exit = seg.surface_exit;
+      if (entry && entry.length >= 2 && exit && exit.length >= 2) {
+        var line = L.polyline([ [entry[0], entry[1]], [exit[0], exit[1]] ], {
+          color: "#7C83FD",
+          weight: 5,
+          dashArray: "8, 8"
+        }).addTo(map);
+        line.bindPopup("<b>" + (seg.name || "") + "</b><br>ID: " + (seg.segment_id || "") + "<br>Distance: " + (seg.distance_m != null ? seg.distance_m + " m" : "—") + "<br>Accessible: " + (seg.is_accessible ? "yes" : "no") + "<br>Hours: " + (seg.hours || "—"));
+      }
+    });
+
+    segments.forEach(function(seg) {
+      var exit = seg.surface_exit;
+      if (exit && exit.length >= 2) {
+        var circle = L.circleMarker([exit[0], exit[1]], { radius: 5, fillColor: "#FF6B6B", color: "white", weight: 2, fillOpacity: 1 }).addTo(map);
+        circle.bindPopup("EXIT: " + (seg.name || ""));
+      }
+    });
+
+    entryPoints.forEach(function(ep) {
+      var c = ep.coordinates;
+      if (c && c.length >= 2) {
+        var circle = L.circleMarker([c[0], c[1]], { radius: 8, fillColor: "#4ECDC4", color: "white", weight: 2, fillOpacity: 1 }).addTo(map);
+        circle.bindPopup("<b>" + (ep.name || "") + "</b><br>" + (ep.description || ""));
+      }
+    });
+
+    document.getElementById("segCount").textContent = segments.length;
+    document.getElementById("entryCount").textContent = entryPoints.length;
+  </script>
+</body>
+</html>
