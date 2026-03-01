@@ -32,6 +32,27 @@ const PLACES = [
     label: 'Block 37, Chicago',
     coordinates: { lat: 41.8837, lng: -87.6278 },
   },
+  // DePaul Loop Campus buildings (approximate coordinates)
+  {
+    id: 'depaul_center',
+    label: 'DePaul Center (1 E Jackson Blvd)',
+    coordinates: { lat: 41.8789, lng: -87.6267 },
+  },
+  {
+    id: 'lewis_center',
+    label: 'Lewis Center (25 E Jackson Blvd)',
+    coordinates: { lat: 41.8789, lng: -87.6260 },
+  },
+  {
+    id: 'daley_building',
+    label: 'Daley Building (14 E Jackson Blvd)',
+    coordinates: { lat: 41.8787, lng: -87.6264 },
+  },
+  {
+    id: 'cna_building',
+    label: 'DePaul CDM at CNA Building (Chicago)',
+    coordinates: { lat: 41.8784, lng: -87.6260 },
+  },
 ];
 
 export async function geocodeAddress(query) {
