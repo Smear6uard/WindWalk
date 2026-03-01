@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import colors from '../constants/colors';
+import { DARK_COLORS, LIGHT_COLORS } from '../constants/colors';
 import { useRoute } from '../context/RouteContext';
 
 export default function WeatherBar() {
-  const { weather, weatherLoading, refreshWeather } = useRoute();
+  const { weather, weatherLoading, refreshWeather, theme } = useRoute();
+
+  const colors = theme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const handleRefresh = async () => {
     await refreshWeather({ force: true });
@@ -44,48 +47,50 @@ export default function WeatherBar() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginHorizontal: 16,
-    marginVertical: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  left: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  city: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  temp: {
-    color: colors.accent,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  refreshBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function makeStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      marginHorizontal: 16,
+      marginVertical: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    left: {
+      flex: 1,
+      paddingRight: 8,
+    },
+    right: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    city: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    temp: {
+      color: colors.accent,
+      fontSize: 20,
+      fontWeight: '700',
+    },
+    meta: {
+      color: colors.textMuted,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    refreshBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surfaceLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}

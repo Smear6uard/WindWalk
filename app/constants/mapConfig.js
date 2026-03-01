@@ -12,7 +12,7 @@ export const MAP_COLORS = {
   background: '#1a1a2e',
   comfortRoute: '#3B82F6',
   shortestRoute: '#FF6B6B',
-  pedway: '#7C83FD',
+  pedway: '#22C55E',
   origin: '#3B82F6',
   destination: '#FF6B6B',
   /** Wind tunnel streets - subtle so route stays readable */

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Switch } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-import colors from '../constants/colors';
+import { DARK_COLORS, LIGHT_COLORS } from '../constants/colors';
 import { LOOP_CENTER, MAP_COLORS, ZOOM_DEFAULTS } from '../constants/mapConfig';
 import { useRoute } from '../context/RouteContext';
 import RouteLine from './RouteLine';
@@ -59,8 +59,8 @@ function extractPedwaySegments(route) {
   return pedway;
 }
 
-export default function MapContainer() {
-  const { routes, activeRoute, origin, destination, windStreets } = useRoute();
+export default function MapContainer({ fullScreen = false }) {
+  const { routes, activeRoute, origin, destination, windStreets, setMapFullScreen, theme } = useRoute();
   const [showWindStreets, setShowWindStreets] = useState(true);
   const mapRef = useRef(null);
   const lastFittedPathRef = useRef('');
@@ -102,6 +102,9 @@ export default function MapContainer() {
 
   const pedwaySegments = useMemo(() => extractPedwaySegments(selectedRoute), [selectedRoute]);
 
+  const colors = theme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const windyPolylines = useMemo(() => {
     const features = windStreets?.features ?? [];
     return features
@@ -133,8 +136,8 @@ export default function MapContainer() {
   ).length;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.mapWrap}>
+    <View style={[styles.container, fullScreen && styles.containerFullScreen]}>
+      <View style={[styles.mapWrap, fullScreen && styles.mapWrapFullScreen]}>
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -143,6 +146,7 @@ export default function MapContainer() {
             ...ZOOM_DEFAULTS,
           }}
           showsUserLocation={false}
+          onPress={!fullScreen && setMapFullScreen ? () => setMapFullScreen(true) : undefined}
         >
           {showWindStreets &&
             windyPolylines.map(({ key, coords }) => (
@@ -206,7 +210,7 @@ export default function MapContainer() {
         </View>
       ) : null}
 
-      {selectedRoute ? (
+      {!fullScreen && selectedRoute ? (
         <View style={styles.infoRow}>
           <Text style={styles.heading}>{selectedRoute.label}</Text>
           <Text style={styles.sub}>
@@ -219,84 +223,96 @@ export default function MapContainer() {
             </View>
           </View>
         </View>
-      ) : (
+      ) : !fullScreen ? (
         <View style={styles.infoRow}>
           <Text style={styles.heading}>Chicago Loop</Text>
           <Text style={styles.sub}>Enter origin and destination to generate shortest and WindWalk paths.</Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  mapWrap: {
-    height: 260,
-    width: '100%',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  map: {
-    width: '100%',
-    height: '100%',
-  },
-  legendRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    gap: 12,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendSwatch: {
-    width: 16,
-    height: 4,
-    borderRadius: 2,
-  },
-  legendText: {
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-  infoRow: {
-    padding: 12,
-  },
-  heading: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  sub: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  badge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgeWind: {
-    backgroundColor: colors.accent,
-  },
-  badgeText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '500',
-  },
-});
+function makeStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      marginHorizontal: 16,
+      marginVertical: 8,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+    mapWrap: {
+      height: 260,
+      width: '100%',
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    containerFullScreen: {
+      marginHorizontal: 0,
+      marginVertical: 0,
+      borderRadius: 0,
+    },
+    mapWrapFullScreen: {
+      flex: 1,
+      height: undefined,
+      borderRadius: 0,
+    },
+    map: {
+      width: '100%',
+      height: '100%',
+    },
+    legendRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      gap: 12,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    legendSwatch: {
+      width: 16,
+      height: 4,
+      borderRadius: 2,
+    },
+    legendText: {
+      color: colors.textMuted,
+      fontSize: 11,
+    },
+    infoRow: {
+      padding: 12,
+    },
+    heading: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 4,
+    },
+    sub: {
+      color: colors.textMuted,
+      fontSize: 12,
+      marginBottom: 8,
+    },
+    badgesRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    badge: {
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    badgeWind: {
+      backgroundColor: colors.accent,
+    },
+    badgeText: {
+      color: colors.text,
+      fontSize: 11,
+      fontWeight: '500',
+    },
+  });
+}

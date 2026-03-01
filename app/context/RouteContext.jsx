@@ -13,7 +13,9 @@ export function RouteProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [activeRoute, setActiveRoute] = useState('comfort');
+  const [mapFullScreen, setMapFullScreen] = useState(false);
   const [error, setError] = useState(null);
+  const [theme, setTheme] = useState('dark');
 
   const refreshWeather = useCallback(async ({ force = false } = {}) => {
     setWeatherLoading(true);
@@ -41,6 +43,13 @@ export function RouteProvider({ children }) {
   useEffect(() => {
     refreshWeather();
   }, [refreshWeather]);
+
+  // When backend was unreachable (offline weather), retry periodically so we pick it up once it's running.
+  useEffect(() => {
+    if (weather?.source !== 'offline') return;
+    const id = setInterval(() => refreshWeather(), 10_000);
+    return () => clearInterval(id);
+  }, [weather?.source, refreshWeather]);
 
   const refreshWindStreets = useCallback(async (windDirection) => {
     if (!windDirection) {
@@ -106,6 +115,10 @@ export function RouteProvider({ children }) {
     }
   }, [destination, origin, refreshWeather]);
 
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
   const value = {
     origin,
     setOrigin,
@@ -121,6 +134,11 @@ export function RouteProvider({ children }) {
     weatherLoading,
     activeRoute,
     setActiveRoute,
+    mapFullScreen,
+    setMapFullScreen,
+    theme,
+    setTheme,
+    toggleTheme,
     error,
     setError,
     fetchRoutes,

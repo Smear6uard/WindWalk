@@ -20,7 +20,18 @@ function FitBounds({ bounds }) {
   return null;
 }
 
-export default function WebMap({ routeCoords, coloredSegments, origin, destination, windStreets }) {
+function MapClickHandler({ onMapClick }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!onMapClick) return;
+    const handler = () => onMapClick();
+    map.on('click', handler);
+    return () => map.off('click', handler);
+  }, [map, onMapClick]);
+  return null;
+}
+
+export default function WebMap({ routeCoords, coloredSegments, origin, destination, windStreets, onMapClick, fullScreen }) {
   const positions = useMemo(() => {
     return routeCoords.map((c) => [c.latitude, c.longitude]);
   }, [routeCoords]);
@@ -62,7 +73,7 @@ export default function WebMap({ routeCoords, coloredSegments, origin, destinati
   }, [positions]);
 
   return (
-    <div style={{ height: 200, width: '100%', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ height: fullScreen ? '100%' : 200, width: '100%', borderRadius: fullScreen ? 0 : 12, overflow: 'hidden' }}>
       <LeafletMap
         center={center}
         zoom={15}
@@ -70,6 +81,7 @@ export default function WebMap({ routeCoords, coloredSegments, origin, destinati
         scrollWheelZoom={true}
       >
         <FitBounds bounds={bounds} />
+        {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
