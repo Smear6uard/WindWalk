@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as Location from 'expo-location';
 import { useRoute } from '../context/RouteContext';
-import { geocode } from '../utils/geocode';
+import { geocode, geocodeSuggestions } from '../utils/geocode';
 import { colors } from '../constants/colors';
 
 const INPUT_BG = '#16213e';
@@ -23,21 +23,95 @@ export default function SearchPanel() {
 
   const originInputRef = useRef(null);
   const destInputRef = useRef(null);
+  const originDebounceRef = useRef(null);
+  const destDebounceRef = useRef(null);
+  const [originSuggestions, setOriginSuggestions] = useState([]);
+  const [destSuggestions, setDestSuggestions] = useState([]);
+
+  const loadOriginSuggestions = async (text) => {
+    const suggestions = await geocodeSuggestions(text);
+    setOriginSuggestions(suggestions);
+  };
+
+  const loadDestSuggestions = async (text) => {
+    const suggestions = await geocodeSuggestions(text);
+    setDestSuggestions(suggestions);
+  };
+
+  const handleOriginChange = (text) => {
+    setOriginText(text);
+
+    if (originDebounceRef.current) {
+      clearTimeout(originDebounceRef.current);
+    }
+
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setOriginSuggestions([]);
+      return;
+    }
+
+    originDebounceRef.current = setTimeout(() => {
+      loadOriginSuggestions(trimmed);
+    }, 300);
+  };
+
+  const handleDestChange = (text) => {
+    setDestText(text);
+
+    if (destDebounceRef.current) {
+      clearTimeout(destDebounceRef.current);
+    }
+
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setDestSuggestions([]);
+      return;
+    }
+
+    destDebounceRef.current = setTimeout(() => {
+      loadDestSuggestions(trimmed);
+    }, 300);
+  };
+
+  const handleSelectOriginSuggestion = (suggestion) => {
+    setOrigin({
+      lat: suggestion.lat,
+      lng: suggestion.lng,
+      label: suggestion.label,
+    });
+    setOriginText(suggestion.label);
+    setOriginSuggestions([]);
+  };
+
+  const handleSelectDestSuggestion = (suggestion) => {
+    setDestination({
+      lat: suggestion.lat,
+      lng: suggestion.lng,
+      label: suggestion.label,
+    });
+    setDestText(suggestion.label);
+    setDestSuggestions([]);
+  };
 
   const handleOriginSubmit = () => {
     const text = originText.trim();
-    if (text) geocode(text, (result) => {
-      setOrigin(result);
-      setOriginText(result.label ?? text);
-    });
+    if (text)
+      geocode(text, (result) => {
+        setOrigin(result);
+        setOriginText(result.label ?? text);
+        setOriginSuggestions([]);
+      });
   };
 
   const handleDestSubmit = () => {
     const text = destText.trim();
-    if (text) geocode(text, (result) => {
-      setDestination(result);
-      setDestText(result.label ?? text);
-    });
+    if (text)
+      geocode(text, (result) => {
+        setDestination(result);
+        setDestText(result.label ?? text);
+        setDestSuggestions([]);
+      });
   };
 
   const handleMyLocation = async () => {
@@ -75,11 +149,26 @@ export default function SearchPanel() {
           placeholder="Origin"
           placeholderTextColor={colors.textMuted}
           value={originText}
-          onChangeText={setOriginText}
+          onChangeText={handleOriginChange}
           onSubmitEditing={handleOriginSubmit}
           returnKeyType="done"
         />
       </View>
+      {originSuggestions.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          {originSuggestions.map((suggestion) => (
+            <TouchableOpacity
+              key={suggestion.id}
+              style={styles.suggestionItem}
+              onPress={() => handleSelectOriginSuggestion(suggestion)}
+            >
+              <Text style={styles.suggestionText} numberOfLines={2}>
+                {suggestion.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
       <View style={styles.inputRow}>
         <View style={[styles.dot, styles.dotRed]} />
         <TextInput
@@ -88,11 +177,26 @@ export default function SearchPanel() {
           placeholder="Destination"
           placeholderTextColor={colors.textMuted}
           value={destText}
-          onChangeText={setDestText}
+          onChangeText={handleDestChange}
           onSubmitEditing={handleDestSubmit}
           returnKeyType="done"
         />
       </View>
+      {destSuggestions.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          {destSuggestions.map((suggestion) => (
+            <TouchableOpacity
+              key={suggestion.id}
+              style={styles.suggestionItem}
+              onPress={() => handleSelectDestSuggestion(suggestion)}
+            >
+              <Text style={styles.suggestionText} numberOfLines={2}>
+                {suggestion.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
       <View style={styles.buttonRow}>
         <TouchableOpacity style={styles.button} onPress={handleMyLocation}>
           <Text style={styles.buttonText}>📍 My Location</Text>
@@ -164,6 +268,25 @@ const styles = StyleSheet.create({
   buttonText: {
     color: colors.text,
     fontSize: 14,
+  },
+  suggestionsContainer: {
+    marginTop: -4,
+    marginBottom: 8,
+    marginLeft: 20,
+    marginRight: 0,
+    backgroundColor: INPUT_BG,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  suggestionText: {
+    color: colors.text,
+    fontSize: 13,
   },
   errorText: {
     color: colors.danger,
