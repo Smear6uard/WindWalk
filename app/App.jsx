@@ -6,6 +6,10 @@ import WeatherBar from './components/WeatherBar';
 import SearchPanel from './components/SearchPanel';
 import DemoButtons from './components/DemoButtons';
 import RouteCards from './components/RouteCards';
+import MapContainer from './components/MapContainer';
+
+const TEST_ORIGIN = [41.8781, -87.6298];
+const TEST_DESTINATION = [41.8827, -87.6233];
 
 function AppContent() {
   const { loading } = useRoute();
@@ -21,9 +25,8 @@ function AppContent() {
       <View style={styles.slot}>
         <DemoButtons />
       </View>
-      {/* P4: Slot your MapContainer component here */}
       <View style={[styles.slot, styles.mapSlot]}>
-        <Text style={styles.placeholder}>MapContainer</Text>
+        <MapContainer origin={TEST_ORIGIN} destination={TEST_DESTINATION} />
       </View>
       <View style={styles.slot}>
         <View style={styles.routeCardsWrapper}>
@@ -61,12 +64,8 @@ const styles = StyleSheet.create({
   },
   mapSlot: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
+    overflow: 'hidden',
+    padding: 0,
   },
   routeCardsWrapper: {
     minHeight: 120,
