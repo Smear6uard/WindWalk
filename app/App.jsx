@@ -8,9 +8,6 @@ import DemoButtons from './components/DemoButtons';
 import RouteCards from './components/RouteCards';
 import MapContainer from './components/MapContainer';
 
-const TEST_ORIGIN = [41.8781, -87.6298];
-const TEST_DESTINATION = [41.8827, -87.6233];
-
 function AppContent() {
   const { loading } = useRoute();
 
@@ -26,7 +23,7 @@ function AppContent() {
         <DemoButtons />
       </View>
       <View style={[styles.slot, styles.mapSlot]}>
-        <MapContainer origin={TEST_ORIGIN} destination={TEST_DESTINATION} />
+        <MapContainer />
       </View>
       <View style={styles.slot}>
         <View style={styles.routeCardsWrapper}>

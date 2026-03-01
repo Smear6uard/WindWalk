@@ -14,7 +14,8 @@ function RouteCard({ route, label, icon, isActive, onPress, accentColor, recomme
     <TouchableOpacity
       style={[
         styles.card,
-        isActive && { borderWidth: 2, borderColor: accentColor },
+        isActive && { borderWidth: 2, borderColor: accentColor, backgroundColor: accentColor + '15' },
+        !isActive && { opacity: 0.5 },
       ]}
       onPress={onPress}
       activeOpacity={0.8}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView from 'react-native-maps';
 import Markers from './Markers';
@@ -6,67 +6,59 @@ import PedwayOverlay from './PedwayOverlay';
 import RouteLine from './RouteLine';
 import WindOverlay from './WindOverlay';
 import { LOOP_CENTER, MAP_COLORS, ZOOM_DEFAULTS } from '../constants/mapConfig';
-import useRoutes from '../hooks/useRoutes';
 import useWeather from '../hooks/useWeather';
+import { useRoute } from '../context/RouteContext';
 
-function toMapCoordinate(coord) {
-  if (Array.isArray(coord) && coord.length === 2) {
-    return {
-      latitude: coord[0],
-      longitude: coord[1],
-    };
-  }
-
-  if (
-    coord &&
-    typeof coord === 'object' &&
-    typeof coord.latitude === 'number' &&
-    typeof coord.longitude === 'number'
-  ) {
-    return coord;
-  }
-
-  return null;
+// Convert GeoJSON [lng, lat] to react-native-maps { latitude, longitude }
+function geoJsonToMapCoord([lng, lat]) {
+  return { latitude: lat, longitude: lng };
 }
 
-function normalizePath(path = []) {
-  return path.map(toMapCoordinate).filter(Boolean);
+// Extract polyline coordinates from a route object's geometry
+function extractPolyline(route) {
+  const coords = route?.geometry?.coordinates;
+  if (!Array.isArray(coords) || coords.length < 2) return [];
+  return coords.map(geoJsonToMapCoord);
 }
 
-function normalizeSegments(segments = []) {
-  if (!segments.length) {
-    return [];
-  }
-
-  if (Array.isArray(segments[0]) && typeof segments[0][0] === 'number') {
-    return [normalizePath(segments)];
-  }
-
-  return segments
-    .map((segment) => normalizePath(segment))
-    .filter((segment) => segment.length > 1);
+// Convert context origin/destination { lat, lng } to map coordinate
+function contextToMapCoord(point) {
+  if (!point || typeof point.lat !== 'number' || typeof point.lng !== 'number') return null;
+  return { latitude: point.lat, longitude: point.lng };
 }
 
-export default function MapContainer({ origin, destination }) {
-  const routes = useRoutes(origin, destination);
+const FIT_PADDING = { top: 80, right: 40, bottom: 260, left: 40 };
+
+export default function MapContainer() {
+  const mapRef = useRef(null);
   const weather = useWeather();
+  const { routes, origin, destination, activeRoute } = useRoute();
 
-  const originCoord = useMemo(() => toMapCoordinate(origin), [origin]);
-  const destinationCoord = useMemo(() => toMapCoordinate(destination), [destination]);
-  const comfortRoute = useMemo(() => normalizePath(routes?.comfort), [routes?.comfort]);
-  const shortestRoute = useMemo(() => normalizePath(routes?.shortest), [routes?.shortest]);
-  const pedwaySegments = useMemo(() => normalizeSegments(routes?.pedway), [routes?.pedway]);
+  const originCoord = useMemo(() => contextToMapCoord(origin), [origin]);
+  const destinationCoord = useMemo(() => contextToMapCoord(destination), [destination]);
+  const comfortRoute = useMemo(() => extractPolyline(routes?.comfort), [routes?.comfort]);
+  const shortestRoute = useMemo(() => extractPolyline(routes?.shortest), [routes?.shortest]);
+  const pedwaySegments = useMemo(() => [], []);
+
+  useEffect(() => {
+    if (comfortRoute.length < 2 || !mapRef.current) return;
+    mapRef.current.fitToCoordinates(comfortRoute, {
+      edgePadding: FIT_PADDING,
+      animated: true,
+    });
+  }, [comfortRoute]);
 
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         style={styles.map}
         initialRegion={{
           ...LOOP_CENTER,
           ...ZOOM_DEFAULTS,
         }}
       >
-        <RouteLine comfortRoute={comfortRoute} shortestRoute={shortestRoute} />
+        <RouteLine comfortRoute={comfortRoute} shortestRoute={shortestRoute} activeRoute={activeRoute} />
         <PedwayOverlay segments={pedwaySegments} />
         <Markers origin={originCoord} destination={destinationCoord} />
         <WindOverlay weather={weather} />
