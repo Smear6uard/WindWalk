@@ -1,7 +1,7 @@
+// Simple in-memory "geocoding" without any external map service.
+// This lets the search bar work using a fixed list of known places.
 import { MAPBOX_TOKEN } from '../constants/config';
 
-// Chicago Loop bounding box (minLng, minLat, maxLng, maxLat) for Mapbox
-// Slightly expanded to include Union Station, Merchandise Mart, and nearby areas
 const LOOP_BBOX = '-87.642,41.873,-87.622,41.89';
 
 // Suggested places shown when the dropdown opens (empty query)
@@ -13,6 +13,11 @@ const SUGGESTED_PLACES = [
   { id: 'merchmart', label: 'Merchandise Mart, Chicago', coordinates: { lat: 41.8884, lng: -87.6354 } },
   { id: 'pedway1', label: 'Chicago Pedway – Randolph & Wabash', coordinates: { lat: 41.8841, lng: -87.6264 } },
   { id: 'block37', label: 'Block 37, Chicago', coordinates: { lat: 41.8837, lng: -87.6278 } },
+  // Buildings (Jackson Blvd)
+  { id: 'depaul_center', label: 'DePaul Center (1 E Jackson Blvd)', coordinates: { lat: 41.8789, lng: -87.6267 } },
+  { id: 'lewis_center', label: 'Lewis Center (25 E Jackson Blvd)', coordinates: { lat: 41.8789, lng: -87.6260 } },
+  { id: 'daley_building', label: 'Daley Building (14 E Jackson Blvd)', coordinates: { lat: 41.8787, lng: -87.6264 } },
+  { id: 'cna_building', label: 'DePaul CDM at CNA Building (Chicago)', coordinates: { lat: 41.8784, lng: -87.6260 } },
   // Metra stations (Loop)
   { id: 'metra-union', label: 'Union Station (Metra)', coordinates: { lat: 41.8786, lng: -87.6406 } },
   { id: 'metra-ogilvie', label: 'Ogilvie Transportation Center (Metra)', coordinates: { lat: 41.8827, lng: -87.6403 } },
