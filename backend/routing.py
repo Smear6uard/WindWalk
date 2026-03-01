@@ -3,18 +3,26 @@
 import networkx as nx
 
 from graph_builder import build_graph, snap_to_graph
-from utils import classify_exposure
+from utils import classify_exposure, haversine
 from wind_cost import compute_edge_weight, compute_feels_like_for_edge
 
 WALK_SPEED_M_PER_MIN = 80  # ~4.8 km/h
+SNAP_THRESHOLD_M = 15  # If snapped node is > this far from requested point, add connector leg
 
 
 def _build_path_result(
     graph: nx.Graph,
     path: list[tuple],
     weather: dict,
+    raw_origin: tuple | None = None,
+    raw_dest: tuple | None = None,
 ) -> dict:
-    """Convert a list of graph nodes into a route response dict."""
+    """Convert a list of graph nodes into a route response dict.
+
+    When raw_origin/raw_dest are provided and differ from the path endpoints by more
+    than SNAP_THRESHOLD_M, prepends/appends the actual coordinates so the route
+    starts and ends at the user's chosen location (e.g. Merchandise Mart).
+    """
     coordinates = [[node[1], node[0]] for node in path]  # [lng, lat]
 
     total_distance = 0.0
@@ -25,6 +33,24 @@ def _build_path_result(
     wind_speed = weather["wind_speed_mph"]
     wind_dir = weather["wind_direction"]
     temp_f = weather["temp_f"]
+
+    # Prepend origin connector if user's point is outside/near graph boundary
+    if raw_origin and len(path) >= 1:
+        o_lat, o_lng = raw_origin
+        first_node = path[0]
+        dist_to_first = haversine(o_lat, o_lng, first_node[0], first_node[1])
+        if dist_to_first > SNAP_THRESHOLD_M:
+            coordinates.insert(0, [o_lng, o_lat])
+            total_distance += dist_to_first
+            fl = temp_f  # Connector is outdoor (no pedway)
+            feels_like_sum += fl
+            segments.append({
+                "segment_id": "origin_connector",
+                "distance": dist_to_first,
+                "wind_amplification": 1.0,
+                "feels_like_f": round(fl, 1),
+                "is_pedway": False,
+            })
 
     for i in range(len(path) - 1):
         edge_data = graph.edges[path[i], path[i + 1]]
@@ -40,6 +66,7 @@ def _build_path_result(
 
         segments.append({
             "segment_id": edge_data.get("segment_id", f"seg-{i}"),
+            "distance": dist,
             "wind_amplification": round(
                 edge_data["amplification"].get(wind_dir, 1.0) if not is_pedway else 0.0,
                 2,
@@ -48,7 +75,25 @@ def _build_path_result(
             "is_pedway": is_pedway,
         })
 
-    num_edges = max(len(path) - 1, 1)
+    # Append destination connector if user's point is outside/near graph boundary
+    if raw_dest and len(path) >= 1:
+        d_lat, d_lng = raw_dest
+        last_node = path[-1]
+        dist_to_last = haversine(last_node[0], last_node[1], d_lat, d_lng)
+        if dist_to_last > SNAP_THRESHOLD_M:
+            coordinates.append([d_lng, d_lat])
+            total_distance += dist_to_last
+            fl = temp_f
+            feels_like_sum += fl
+            segments.append({
+                "segment_id": "dest_connector",
+                "distance": dist_to_last,
+                "wind_amplification": 1.0,
+                "feels_like_f": round(fl, 1),
+                "is_pedway": False,
+            })
+
+    num_edges = max(len(segments), 1)
     feels_like_avg = feels_like_sum / num_edges
 
     return {
@@ -101,9 +146,18 @@ def find_routes(
     except (nx.NetworkXNoPath, nx.NodeNotFound):
         return {"error": "No walking path exists between origin and destination."}
 
+    raw_origin = (origin_lat, origin_lng)
+    raw_dest = (dest_lat, dest_lng)
+
     return {
-        "shortest": _build_path_result(graph, shortest_path, weather),
-        "comfort": _build_path_result(graph, comfort_path, weather),
+        "shortest": _build_path_result(
+            graph, shortest_path, weather,
+            raw_origin=raw_origin, raw_dest=raw_dest,
+        ),
+        "comfort": _build_path_result(
+            graph, comfort_path, weather,
+            raw_origin=raw_origin, raw_dest=raw_dest,
+        ),
         "weather": weather,
     }
 

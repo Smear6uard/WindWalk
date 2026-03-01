@@ -3,11 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import WebMap from './WebMap';
 import colors from '../constants/colors';
 import { useRoute } from '../context/RouteContext';
-
-function coordsToLatLng(coords) {
-  if (!coords || !Array.isArray(coords)) return [];
-  return coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
-}
+import { getColoredRouteSegments } from '../utils/routeUtils';
 
 export default function MapContainer() {
   const { routes, activeRoute, origin, destination } = useRoute();
@@ -19,7 +15,15 @@ export default function MapContainer() {
 
   const routeCoords = useMemo(() => {
     if (!selected?.geometry?.coordinates) return [];
-    return coordsToLatLng(selected.geometry.coordinates);
+    return selected.geometry.coordinates.map(([lng, lat]) => ({
+      latitude: lat,
+      longitude: lng,
+    }));
+  }, [selected]);
+
+  const coloredSegments = useMemo(() => {
+    if (!selected?.geometry || !selected?.segments?.length) return [];
+    return getColoredRouteSegments(selected.geometry, selected.segments);
   }, [selected]);
 
   if (!selected) {
@@ -40,6 +44,7 @@ export default function MapContainer() {
       <View style={styles.mapWrap}>
         <WebMap
           routeCoords={routeCoords}
+          coloredSegments={coloredSegments}
           origin={origin}
           destination={destination}
         />

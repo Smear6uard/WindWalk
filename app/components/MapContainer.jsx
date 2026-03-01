@@ -4,6 +4,7 @@ import MapView, { Polyline, Marker } from 'react-native-maps';
 import colors from '../constants/colors';
 import { MAP_COLORS, LOOP_CENTER, ZOOM_DEFAULTS } from '../constants/mapConfig';
 import { useRoute } from '../context/RouteContext';
+import { getColoredRouteSegments } from '../utils/routeUtils';
 
 function coordsToLatLng(coords) {
   if (!coords || !Array.isArray(coords)) return [];
@@ -21,6 +22,11 @@ export default function MapContainer() {
   const routeCoords = useMemo(() => {
     if (!selected?.geometry?.coordinates) return [];
     return coordsToLatLng(selected.geometry.coordinates);
+  }, [selected]);
+
+  const coloredSegments = useMemo(() => {
+    if (!selected?.geometry || !selected?.segments?.length) return [];
+    return getColoredRouteSegments(selected.geometry, selected.segments);
   }, [selected]);
 
   const initialRegion = useMemo(() => {
@@ -62,17 +68,29 @@ export default function MapContainer() {
     <View style={styles.container}>
       <View style={styles.mapWrap}>
         <MapView
+          key={`route-${activeRoute}-${selected?.id ?? ''}`}
           style={styles.map}
           initialRegion={initialRegion}
           showsUserLocation={false}
         >
-          {routeCoords.length > 1 && (
-            <Polyline
-              coordinates={routeCoords}
-              strokeColor={MAP_COLORS.comfortRoute}
-              strokeWidth={5}
-            />
-          )}
+          {coloredSegments.length > 0
+            ? coloredSegments.map((seg, idx) => (
+                <Polyline
+                  key={`${activeRoute}-${idx}-${seg.type}`}
+                  coordinates={coordsToLatLng(seg.coordinates)}
+                  strokeColor={
+                    seg.type === 'pedway' ? MAP_COLORS.pedway : MAP_COLORS.comfortRoute
+                  }
+                  strokeWidth={5}
+                />
+              ))
+            : routeCoords.length > 1 && (
+                <Polyline
+                  coordinates={routeCoords}
+                  strokeColor={MAP_COLORS.comfortRoute}
+                  strokeWidth={5}
+                />
+              )}
           {origin && (
             <Marker
               coordinate={{ latitude: origin.lat, longitude: origin.lng }}

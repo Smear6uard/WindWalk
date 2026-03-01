@@ -196,6 +196,54 @@ def build_graph(data: dict | None = None) -> nx.Graph:
                 connected += 1
         print(f"[graph_builder] Stitched {connected}/{len(pedway_nodes)} pedway nodes to street network")
 
+    # --- Connect disconnected components (bridge gaps in street data) ---
+    G = _connect_components(G)
+
+    return G
+
+
+def _connect_components(G: nx.Graph, max_bridge_dist: float = 120.0) -> nx.Graph:
+    """Connect disconnected components by adding bridge edges between nearby nodes.
+
+    Many street segments form isolated components. This finds the closest pair
+    between each small component and the largest component, and adds an edge
+    if they're within max_bridge_dist meters. Makes the graph fully connected.
+    """
+    comps = list(nx.connected_components(G))
+    if len(comps) <= 1:
+        return G
+
+    # Largest component is the main street network
+    main = max(comps, key=len)
+    main_nodes = list(main)
+    bridges_added = 0
+
+    for comp in comps:
+        if comp is main:
+            continue
+        comp_nodes = list(comp)
+        best_pair = None
+        best_dist = math.inf
+        for cn in comp_nodes:
+            for mn in main_nodes:
+                d = haversine(cn[0], cn[1], mn[0], mn[1])
+                if d < best_dist:
+                    best_dist = d
+                    best_pair = (cn, mn)
+        if best_pair and best_dist <= max_bridge_dist:
+            a, b = best_pair
+            G.add_edge(
+                a, b,
+                segment_id=f"bridge_{a[0]:.4f}_{a[1]:.4f}",
+                distance=best_dist,
+                street_name="bridge",
+                amplification=_UNIT_AMP,
+                is_pedway=False,
+            )
+            bridges_added += 1
+
+    if bridges_added > 0:
+        print(f"[graph_builder] Added {bridges_added} bridge edges to connect components")
     return G
 
 

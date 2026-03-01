@@ -1,7 +1,9 @@
 // Simple in-memory "geocoding" without any external map service.
 // This lets the search bar work using a fixed list of known places.
+import { MAPBOX_TOKEN } from '../constants/config';
 
-const PLACES = [
+const LOOP_BBOX = '-87.642,41.873,-87.622,41.89';
+const SUGGESTED_PLACES = [
   {
     id: 'origin1',
     label: 'Willis Tower, Chicago',
@@ -32,39 +34,57 @@ const PLACES = [
     label: 'Block 37, Chicago',
     coordinates: { lat: 41.8837, lng: -87.6278 },
   },
-  // DePaul Loop Campus buildings (approximate coordinates)
-  {
-    id: 'depaul_center',
-    label: 'DePaul Center (1 E Jackson Blvd)',
-    coordinates: { lat: 41.8789, lng: -87.6267 },
-  },
-  {
-    id: 'lewis_center',
-    label: 'Lewis Center (25 E Jackson Blvd)',
-    coordinates: { lat: 41.8789, lng: -87.6260 },
-  },
-  {
-    id: 'daley_building',
-    label: 'Daley Building (14 E Jackson Blvd)',
-    coordinates: { lat: 41.8787, lng: -87.6264 },
-  },
-  {
-    id: 'cna_building',
-    label: 'DePaul CDM at CNA Building (Chicago)',
-    coordinates: { lat: 41.8784, lng: -87.6260 },
-  },
+  { id: 'depaul_center', 
+    label: 'DePaul Center (1 E Jackson Blvd)', 
+    coordinates: { lat: 41.8789, lng: -87.6267 } },
+  { id: 'lewis_center', 
+    label: 'Lewis Center (25 E Jackson Blvd)', 
+    coordinates: { lat: 41.8789, lng: -87.6260 } },
+  { id: 'daley_building', 
+    label: 'Daley Building (14 E Jackson Blvd)', 
+    coordinates: { lat: 41.8787, lng: -87.6264 } },
+  { id: 'cna_building', 
+    label: 'DePaul CDM at CNA Building (Chicago)', 
+    coordinates: { lat: 41.8784, lng: -87.6260 } },
 ];
 
-export async function geocodeAddress(query) {
-  const q = (query || '').trim().toLowerCase();
 
-  // Empty query returns all places (for showing suggestions on focus).
+/**
+ * Geocode an address or place name in the Chicago Loop.
+ * - Empty query: returns suggested places for the dropdown.
+ * - With Mapbox token: calls Mapbox Geocoding API (Loop bbox).
+ * - Without token or on error: falls back to substring match on suggested places.
+ */
+export async function geocodeAddress(query) {
+  const q = (query || '').trim();
+
+  // Empty query returns suggested places for initial dropdown
   if (!q) {
-    return [...PLACES];
+    return [...SUGGESTED_PLACES];
   }
 
-  // Substring search over the fixed list.
-  const matches = PLACES.filter((p) => p.label.toLowerCase().includes(q));
-  return matches;
-}
+  if (MAPBOX_TOKEN) {
+    try {
+      const encoded = encodeURIComponent(q);
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${MAPBOX_TOKEN}&bbox=${LOOP_BBOX}&limit=10`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Mapbox ${res.status}`);
+      const data = await res.json();
+      const features = data.features || [];
+      return features.map((f, i) => ({
+        id: f.id || `mapbox-${i}`,
+        label: f.place_name || f.text || 'Unknown',
+        coordinates: {
+          lat: f.center[1],
+          lng: f.center[0],
+        },
+      }));
+    } catch (err) {
+      console.warn('Mapbox geocode failed, using fallback:', err?.message);
+    }
+  }
 
+  // Fallback: substring match on suggested places
+  const lower = q.toLowerCase();
+  return SUGGESTED_PLACES.filter((p) => p.label.toLowerCase().includes(lower));
+}
