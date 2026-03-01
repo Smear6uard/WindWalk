@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '../constants/colors';
+import { API_URL } from '../constants/config';
 import { geocodeAddress } from '../utils/geocode';
 import { useRoute } from '../context/RouteContext';
 
@@ -104,7 +105,11 @@ export default function SearchPanel() {
     try {
       await fetchRoutes();
     } catch (e) {
-      setError('Unable to calculate route.');
+      let msg = 'Unable to calculate route. Is the backend running?';
+      if (e?.name === 'AbortError') {
+        msg = 'Connection timed out. Use your PC\'s Wi‑Fi IP (192.168.x.x) in .env — not 172.17/172.31 (Docker/WSL). Restart with: npx expo start -c';
+      }
+      setError(msg);
     }
   };
 
@@ -194,6 +199,12 @@ export default function SearchPanel() {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
+      {__DEV__ && (
+        <Text style={styles.devHint} numberOfLines={1}>
+          API: {API_URL}
+        </Text>
+      )}
+
       <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
         onPress={handleSubmitRoute}
@@ -280,6 +291,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: colors.danger,
     fontSize: 12,
+  },
+  devHint: {
+    marginTop: 4,
+    color: colors.textMuted,
+    fontSize: 10,
   },
   button: {
     marginTop: 8,

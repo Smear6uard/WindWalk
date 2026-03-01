@@ -61,6 +61,41 @@ def weather():
     return get_weather_or_mock()
 
 
+# Amplification threshold: streets with amp >= this are "windy" for current wind
+# Data max ~1.22 for aligned streets; use 1.12 to show streets with noticeable channeling
+WINDY_STREET_THRESHOLD = 1.12
+
+
+@app.get("/api/wind-streets")
+def wind_streets(wind_direction: str = Query(..., description="16-point compass, e.g. NNW")):
+    """Return GeoJSON of street segments with high wind amplification for the given direction.
+    Used to show 'wind tunnel' streets on the map so users see we avoid them."""
+    valid = ("N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+             "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
+    if wind_direction not in valid:
+        wind_direction = "N"  # fallback
+
+    features = []
+    for u, v, d in GRAPH.edges(data=True):
+        if d.get("is_pedway"):
+            continue
+        amp = d.get("amplification", {}).get(wind_direction, 1.0)
+        if amp >= WINDY_STREET_THRESHOLD:
+            # GeoJSON: [lng, lat]; graph nodes are (lat, lng)
+            coords = [[u[1], u[0]], [v[1], v[0]]]
+            features.append({
+                "type": "Feature",
+                "geometry": {"type": "LineString", "coordinates": coords},
+                "properties": {"amplification": round(amp, 2)},
+            })
+
+    return {
+        "type": "FeatureCollection",
+        "features": features,
+        "wind_direction": wind_direction,
+    }
+
+
 @app.get("/api/route")
 def route(
     origin_lat: float = Query(...),

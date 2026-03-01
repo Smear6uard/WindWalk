@@ -4,7 +4,8 @@ export const MAPBOX_TOKEN =
   (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_MAPBOX_TOKEN) ||
   '';
 
-/** Dev API URL: use PC's IP when on physical device so the phone can reach the backend. */
+/** Dev API URL: use PC's Wi‑Fi IP when on physical device so the phone can reach the backend.
+ *  Avoid 172.17.x, 172.31.x (Docker/WSL) — use your Wi‑Fi adapter IP (e.g. 192.168.1.x). */
 function getDevApiUrl() {
   try {
     const manifest = Constants.expoConfig ?? Constants.manifest ?? Constants.manifest2;

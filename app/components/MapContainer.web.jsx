@@ -1,12 +1,14 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Switch } from 'react-native';
 import WebMap from './WebMap';
 import colors from '../constants/colors';
+import { MAP_COLORS } from '../constants/mapConfig';
 import { useRoute } from '../context/RouteContext';
 import { getColoredRouteSegments } from '../utils/routeUtils';
 
 export default function MapContainer() {
-  const { routes, activeRoute, origin, destination } = useRoute();
+  const { routes, activeRoute, origin, destination, windStreets } = useRoute();
+  const [showWindStreets, setShowWindStreets] = useState(true);
 
   const selected = useMemo(() => {
     if (!routes || !routes.length) return null;
@@ -26,16 +28,10 @@ export default function MapContainer() {
     return getColoredRouteSegments(selected.geometry, selected.segments);
   }, [selected]);
 
-  if (!selected) {
-    return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>Map preview of your pedway route will appear here.</Text>
-      </View>
-    );
-  }
+  // Always show map (Loop view); overlay windy streets and/or route when available
 
-  const totalSegments = (selected.segments ?? []).length;
-  const pedwaySegments = (selected.segments ?? []).filter(
+  const totalSegments = (selected?.segments ?? []).length;
+  const pedwaySegments = (selected?.segments ?? []).filter(
     (s) => s.type === 'pedway'
   ).length;
 
@@ -47,20 +43,50 @@ export default function MapContainer() {
           coloredSegments={coloredSegments}
           origin={origin}
           destination={destination}
+          windStreets={showWindStreets ? windStreets : null}
         />
       </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.heading}>{selected.label}</Text>
-        <Text style={styles.sub}>
-          {(selected.distance_m / 1000).toFixed(2)} km • {selected.duration_min} min •{' '}
-          {pedwaySegments}/{totalSegments} pedway
-        </Text>
-        <View style={styles.badgesRow}>
-          <View style={[styles.badge, styles.badgeWind]}>
-            <Text style={styles.badgeText}>Wind: {selected.wind_exposure}</Text>
+      {windStreets?.features?.length > 0 && (
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendSwatch, { backgroundColor: MAP_COLORS.windyStreet }]} />
+            <Text style={styles.legendText}>Wind tunnel streets</Text>
+          </View>
+          <Switch
+            value={showWindStreets}
+            onValueChange={setShowWindStreets}
+            trackColor={{ false: colors.surfaceLight, true: colors.accent }}
+            thumbColor={colors.text}
+            accessibilityLabel="Toggle wind tunnel streets on map"
+          />
+        </View>
+      )}
+      {selected && (
+        <View style={styles.infoRow}>
+          <Text style={styles.heading}>{selected.label}</Text>
+          <Text style={styles.sub}>
+            {(selected.distance_m / 1000).toFixed(2)} km • {selected.duration_min} min •{' '}
+            {pedwaySegments}/{totalSegments} pedway
+          </Text>
+          <View style={styles.badgesRow}>
+            <View style={[styles.badge, styles.badgeWind]}>
+              <Text style={styles.badgeText}>Wind: {selected.wind_exposure}</Text>
+            </View>
           </View>
         </View>
-      </View>
+      )}
+      {!selected && (
+        <View style={styles.infoRow}>
+          <Text style={styles.heading}>
+            {windStreets?.features?.length > 0 ? 'Wind map' : 'Chicago Loop'}
+          </Text>
+          <Text style={styles.sub}>
+            {windStreets?.features?.length > 0
+              ? `Streets in red are wind tunnels for current wind (${windStreets.wind_direction}). Enter addresses to plan a route that avoids them.`
+              : 'Enter start and end addresses to plan your pedway route. Start the backend to see wind tunnel streets.'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -79,6 +105,26 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    gap: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendSwatch: {
+    width: 16,
+    height: 4,
+    borderRadius: 2,
+  },
+  legendText: {
+    color: colors.textMuted,
+    fontSize: 11,
   },
   infoRow: {
     padding: 12,

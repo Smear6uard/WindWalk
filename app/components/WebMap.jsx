@@ -20,7 +20,7 @@ function FitBounds({ bounds }) {
   return null;
 }
 
-export default function WebMap({ routeCoords, coloredSegments, origin, destination }) {
+export default function WebMap({ routeCoords, coloredSegments, origin, destination, windStreets }) {
   const positions = useMemo(() => {
     return routeCoords.map((c) => [c.latitude, c.longitude]);
   }, [routeCoords]);
@@ -34,6 +34,18 @@ export default function WebMap({ routeCoords, coloredSegments, origin, destinati
       return { key: idx, positions: pos, color };
     });
   }, [coloredSegments]);
+
+  const windyPolylines = useMemo(() => {
+    const features = windStreets?.features ?? [];
+    return features
+      .map((f, i) => {
+        const coords = f.geometry?.coordinates ?? [];
+        if (coords.length < 2) return null;
+        const pos = coords.map(([lng, lat]) => [lat, lng]);
+        return { key: `windy-${i}`, positions: pos };
+      })
+      .filter(Boolean);
+  }, [windStreets]);
 
   const center = useMemo(() => {
     if (positions.length > 0) {
@@ -62,6 +74,13 @@ export default function WebMap({ routeCoords, coloredSegments, origin, destinati
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        {windyPolylines.map(({ key, positions: pos }) => (
+          <Polyline
+            key={key}
+            positions={pos}
+            pathOptions={{ color: MAP_COLORS.windyStreet, weight: 4 }}
+          />
+        ))}
         {segmentPolylines
           ? segmentPolylines.map(({ key, positions: pos, color }) => (
               <Polyline
