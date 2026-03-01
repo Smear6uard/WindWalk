@@ -25,17 +25,17 @@ function RouteCard({ route, active, onPress, color, title, feelsLikeOverride, st
   const feelsLike = feelsLikeOverride ?? route.feels_like_avg_f ?? 0;
 
   return (
-    <View style={[styles.card, active && { borderColor: color, borderWidth: 2 }]}>
+    <TouchableOpacity
+      style={[styles.card, active && { borderColor: color, borderWidth: 2 }]}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
       <Text style={[styles.label, { color }]}>{title}</Text>
       <Text style={styles.metric}>Distance: {(route.distance_m / 1000).toFixed(2)} km</Text>
       <Text style={styles.metric}>Duration: {route.duration_min} min</Text>
       <Text style={styles.metric}>Feels like: {Math.round(feelsLike)}F</Text>
       <Text style={styles.metric}>Pedway segments: {route.pedway_segments ?? 0}</Text>
-
-      <TouchableOpacity style={[styles.openButton, { backgroundColor: color }]} onPress={onPress}>
-        <Text style={styles.openButtonText}>Open Path</Text>
-      </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 }
 
